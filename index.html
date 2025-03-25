@@ -3,20 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Readiness: Future Proof</title>
+    <title>FutureProof AI: Quantum Readiness Assessment</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
             --bg-primary: #0a1128;
+            --bg-secondary: #1a2980;
             --text-primary: #e6f1ff;
             --accent-blue: #00b4ff;
             --accent-green: #00ff87;
+            --accent-purple: #8a4fff;
             --gradient-bg: linear-gradient(135deg, #0a1128 0%, #1a2980 100%);
         }
 
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
         }
 
         @keyframes gradientFlow {
@@ -25,243 +29,217 @@
             100% { background-position: 0% 50%; }
         }
 
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+
         @keyframes glitch {
             2%, 64% { transform: translate(2px, 0) skew(0deg); }
             4%, 60% { transform: translate(-2px, 0) skew(0deg); }
             62% { transform: translate(0, 0) skew(5deg); }
         }
 
-        @keyframes flickerAnimation {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
             font-family: 'Arial', sans-serif;
             background: var(--gradient-bg);
             color: var(--text-primary);
-            line-height: 1.6;
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow-x: hidden;
-            padding: 1rem;
+            perspective: 1000px;
             background-size: 400% 400%;
             animation: gradientFlow 15s ease infinite;
-            perspective: 1000px;
+            overflow-x: hidden;
+            padding: 1rem;
         }
 
-        .container {
-            width: 90%;
-            max-width: 800px;
-            background: rgba(26, 41, 128, 0.5);
+        .quantum-container {
+            width: 95%;
+            max-width: 1000px;
+            background: rgba(26, 41, 128, 0.7);
+            border-radius: 20px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
             padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
             text-align: center;
             position: relative;
             overflow: hidden;
+            backdrop-filter: blur(10px);
             transform-style: preserve-3d;
-            transition: all 0.5s ease;
+            transform: rotateX(10deg);
         }
 
-        .container::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle at center, rgba(0,180,255,0.1) 0%, transparent 70%);
-            animation: pulse 5s infinite;
-            z-index: -1;
-        }
-
-        .logo {
-            font-size: 2rem;
-            margin-bottom: 1rem;
+        .quantum-logo {
+            font-size: 2.5rem;
             background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            animation: glitch 2s infinite;
+            margin-bottom: 1.5rem;
+            animation: glitch 3s infinite;
         }
 
         .language-selector {
             display: flex;
             justify-content: center;
-            margin-bottom: 1.5rem;
             gap: 1rem;
+            margin-bottom: 2rem;
         }
 
         .language-btn {
             background: transparent;
             border: 2px solid var(--accent-blue);
             color: var(--text-primary);
-            padding: 10px;
-            border-radius: 8px;
+            padding: 12px 20px;
+            border-radius: 10px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            width: 150px;
-            text-decoration: none;
+            font-weight: bold;
             position: relative;
             overflow: hidden;
-        }
-
-        .language-btn::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(120deg, transparent, rgba(255,255,255,0.1), transparent);
-            transition: 0.5s;
-        }
-
-        .language-btn:hover::after {
-            left: 100%;
-        }
-
-        .language-btn:hover, .language-btn:focus {
-            background: var(--accent-blue);
-            outline: 2px solid white;
-            transform: scale(1.05) rotateX(10deg);
+            transition: all 0.4s ease;
         }
 
         .language-btn.active {
             background: var(--accent-blue);
             color: var(--bg-primary);
-            animation: flickerAnimation 2s infinite;
+            transform: scale(1.05);
         }
 
-        .language-btn span {
+        .quiz-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .quantum-question {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            color: var(--accent-green);
+            text-shadow: 0 0 10px rgba(0, 255, 135, 0.5);
+        }
+
+        .answer-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .quantum-btn {
+            background: rgba(0, 180, 255, 0.1);
+            border: 2px solid var(--accent-blue);
+            color: var(--text-primary);
+            padding: 15px;
+            border-radius: 15px;
+            cursor: pointer;
             font-weight: bold;
             position: relative;
-            z-index: 1;
+            overflow: hidden;
+            transition: all 0.4s ease;
         }
 
-        /* Rest of the previous CSS remains the same */
-        /* Include all the previous CSS styles for other elements */
+        .quantum-btn:hover {
+            background: var(--accent-blue);
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 180, 255, 0.5);
+        }
+
+        .results-section {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .quantum-score {
+            font-size: 3rem;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 1rem 0;
+        }
+
+        .resources-section {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            display: none;
+        }
+
+        .resource-card {
+            background: rgba(26, 41, 128, 0.5);
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: left;
+            border: 1px solid var(--accent-blue);
+            transition: all 0.4s ease;
+        }
+
+        .resource-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .action-btn {
+            display: inline-block;
+            background: var(--accent-blue);
+            color: var(--bg-primary);
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .answer-grid, .resources-section {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="logo" aria-label="FutureProof AI">FutureProof AI</div>
+    <div class="quantum-container">
+        <div class="quantum-logo">FutureProof AI</div>
         
-        <h1 class="sr-only">Language Selection and AI Readiness Quiz</h1>
-
-        <div class="language-selector" role="radiogroup" aria-label="Select Language">
-            <button 
-                class="language-btn active" 
-                onclick="setLanguage('en')" 
-                role="radio" 
-                aria-checked="true"
-                aria-label="English Language"
-            >
-                <span>English</span>
-            </button>
-            <button 
-                class="language-btn" 
-                onclick="setLanguage('nl')" 
-                role="radio" 
-                aria-checked="false"
-                aria-label="Dutch Language"
-            >
-                <span>Nederlands</span>
-            </button>
+        <div class="language-selector">
+            <button class="language-btn active" onclick="setLanguage('en')">English</button>
+            <button class="language-btn" onclick="setLanguage('nl')">Nederlands</button>
         </div>
 
-        <!-- Rest of the previous HTML content remains the same -->
-        <div id="quiz-container">
-            <div 
-                class="quiz-question" 
-                id="question-text" 
-                aria-live="polite"
-            >
-                Is your data infrastructure quantum-ready?
-            </div>
-            <div role="group" aria-label="Quiz Answer Options">
-                <button 
-                    class="option-button" 
-                    onclick="answerQuestion('yes')"
-                    aria-describedby="question-text"
-                >
-                    Fully Prepared
-                </button>
-                <button 
-                    class="option-button" 
-                    onclick="answerQuestion('partial')"
-                    aria-describedby="question-text"
-                >
-                    Partially Ready
-                </button>
-                <button 
-                    class="option-button" 
-                    onclick="answerQuestion('no')"
-                    aria-describedby="question-text"
-                >
-                    Not Ready
-                </button>
+        <div id="quiz-section" class="quiz-section">
+            <div id="quantum-question" class="quantum-question">Loading Question...</div>
+            <div class="answer-grid" id="answer-options">
+                <!-- Dynamic answer buttons will be inserted here -->
             </div>
         </div>
 
-        <div 
-            id="results" 
-            style="display:none;" 
-            aria-live="polite"
-        >
-            <h2>AI Readiness Quantum Score</h2>
-            <div 
-                class="result-score" 
-                id="result-percentage"
-                aria-label="AI Readiness Percentage"
-            >
-                0%
-            </div>
-            <p id="result-description"></p>
-            <button 
-                class="continue-btn" 
-                onclick="showResources()"
-            >
-                Continue to Resources
-            </button>
+        <div id="results-section" class="results-section">
+            <h2 id="results-title">AI Readiness Assessment</h2>
+            <div id="quantum-score" class="quantum-score">0%</div>
+            <p id="results-description"></p>
+            <button onclick="showResources()" class="quantum-btn">Explore Resources</button>
         </div>
 
-        <div id="resources" style="display:none;">
-            <div class="logo">FutureProof AI Resources</div>
-            
-            <div class="resource-grid">
-                <div class="resource-card">
-                    <h3>Infrastructure Scaling</h3>
-                    <p>Comprehensive guide to scaling AI infrastructure, covering cloud integration, distributed computing, and quantum computing preparedness.</p>
-                    <a href="#" class="action-button">Learn More</a>
-                </div>
-                
-                <div class="resource-card">
-                    <h3>Ethical AI Governance</h3>
-                    <p>Develop robust ethical frameworks for AI implementation, addressing bias, transparency, and responsible AI development strategies.</p>
-                    <a href="#" class="action-button">Explore Framework</a>
-                </div>
-                
-                <div class="resource-card">
-                    <h3>Cross-Domain Learning</h3>
-                    <p>Techniques for developing AI models capable of transferring knowledge across different domains and adapting to complex scenarios.</p>
-                    <a href="#" class="action-button">Discover Techniques</a>
-                </div>
-                
-                <div class="resource-card">
-                    <h3>AI Cost Optimization</h3>
-                    <p>Strategies for reducing computational costs, improving energy efficiency, and maximizing ROI in AI and machine learning projects.</p>
-                    <a href="#" class="action-button">View Strategies</a>
-                </div>
+        <div id="resources-section" class="resources-section">
+            <div class="resource-card">
+                <h3>AI Infrastructure Evolution</h3>
+                <p>Advanced strategies for quantum-ready infrastructure, emphasizing scalability, resilience, and cutting-edge computational architectures.</p>
+                <a href="#" class="action-btn">Deep Dive</a>
+            </div>
+            <div class="resource-card">
+                <h3>Ethical AI Governance 2.0</h3>
+                <p>Next-generation frameworks for responsible AI development, addressing complex challenges in bias mitigation, transparency, and global AI ethics.</p>
+                <a href="#" class="action-btn">Explore Framework</a>
+            </div>
+            <div class="resource-card">
+                <h3>Cross-Domain AI Intelligence</h3>
+                <p>Advanced techniques for developing adaptable AI models capable of seamless knowledge transfer and contextual understanding across domains.</p>
+                <a href="#" class="action-btn">Learn Techniques</a>
+            </div>
+            <div class="resource-card">
+                <h3>AI Economic Optimization</h3>
+                <p>Comprehensive strategies for maximizing computational efficiency, reducing energy consumption, and achieving optimal ROI in AI investments.</p>
+                <a href="#" class="action-btn">View Strategies</a>
             </div>
         </div>
     </div>
@@ -270,64 +248,98 @@
         const translations = {
             en: {
                 questions: [
-                    { 
+                    {
                         text: "Is your data infrastructure quantum-ready?",
-                        category: "infrastructure"
+                        category: "infrastructure",
+                        details: "Assess your computational architecture's quantum computing preparedness"
                     },
-                    { 
+                    {
                         text: "Can your AI adapt to emerging cognitive technologies?",
-                        category: "adaptability"
+                        category: "adaptability",
+                        details: "Evaluate your AI's learning flexibility and knowledge transfer capabilities"
                     },
-                    { 
-                        text: "Do you have ethical AI governance frameworks?",
-                        category: "governance"
+                    {
+                        text: "Do you have comprehensive ethical AI governance frameworks?",
+                        category: "governance",
+                        details: "Measure your organization's approach to responsible AI development"
                     },
-                    { 
-                        text: "Are your AI models capable of cross-domain learning?",
-                        category: "intelligence"
+                    {
+                        text: "Are your AI models capable of cross-domain intelligence?",
+                        category: "intelligence",
+                        details: "Assess your AI's ability to understand and learn across multiple domains"
+                    },
+                    {
+                        text: "How advanced are your AI security and privacy protocols?",
+                        category: "security",
+                        details: "Evaluate your organization's AI protection and data privacy strategies"
                     }
                 ],
                 options: {
-                    fullyPrepared: "Fully Prepared",
-                    partiallyReady: "Partially Ready",
-                    notReady: "Not Ready"
+                    fullyPrepared: "Quantum-Level Readiness",
+                    partiallyReady: "Emerging Potential",
+                    notReady: "Transformation Required"
                 },
                 results: {
-                    title: "AI Readiness Quantum Score",
-                    lowScore: "Urgent transformation needed. Your AI infrastructure requires comprehensive redesign.",
-                    mediumScore: "Emerging potential. Strategic investments can accelerate your AI readiness.",
-                    highScore: "Quantum-level preparedness. You're at the forefront of AI innovation."
+                    lowScore: {
+                        title: "Urgent Transformation Needed",
+                        description: "Your AI infrastructure requires comprehensive redesign. Immediate strategic interventions are crucial for future competitiveness."
+                    },
+                    mediumScore: {
+                        title: "Emerging AI Potential",
+                        description: "You have a solid foundation. Strategic investments and targeted enhancements can accelerate your AI readiness significantly."
+                    },
+                    highScore: {
+                        title: "Quantum-Level Preparedness",
+                        description: "Congratulations! You're at the forefront of AI innovation, with a robust, adaptable, and forward-looking AI ecosystem."
+                    }
                 }
             },
             nl: {
                 questions: [
-                    { 
+                    {
                         text: "Is uw data-infrastructuur quantum-klaar?",
-                        category: "infrastructure"
+                        category: "infrastructure",
+                        details: "Beoordeel de quantum-compute-paraatheid van uw rekenarchitectuur"
                     },
-                    { 
+                    {
                         text: "Kan uw AI zich aanpassen aan opkomende cognitieve technologieën?",
-                        category: "adaptability"
+                        category: "adaptability",
+                        details: "Evalueer de leervaardigheid en kennisoverdrachtcapaciteiten van uw AI"
                     },
-                    { 
-                        text: "Beschikt u over ethische AI-governancekaders?",
-                        category: "governance"
+                    {
+                        text: "Beschikt u over uitgebreide ethische AI-governancekaders?",
+                        category: "governance",
+                        details: "Meet de benadering van uw organisatie voor verantwoorde AI-ontwikkeling"
                     },
-                    { 
-                        text: "Zijn uw AI-modellen in staat tot domein-overschrijdend leren?",
-                        category: "intelligence"
+                    {
+                        text: "Zijn uw AI-modellen in staat tot domein-overschrijdende intelligentie?",
+                        category: "intelligence",
+                        details: "Beoordeel het vermogen van uw AI om meerdere domeinen te begrijpen en te leren"
+                    },
+                    {
+                        text: "Hoe geavanceerd zijn uw AI-beveiliging en privacyprotocollen?",
+                        category: "security",
+                        details: "Evalueer de AI-beschermings- en data-privacystrategieën van uw organisatie"
                     }
                 ],
                 options: {
-                    fullyPrepared: "Volledig Voorbereid",
-                    partiallyReady: "Gedeeltelijk Gereed",
-                    notReady: "Niet Gereed"
+                    fullyPrepared: "Quantum-niveau Gereedheid",
+                    partiallyReady: "Opkomend Potentieel",
+                    notReady: "Transformatie Vereist"
                 },
                 results: {
-                    title: "AI Gereedheids Quantum Score",
-                    lowScore: "Dringende transformatie nodig. Uw AI-infrastructuur vereist een uitgebreide herontwerp.",
-                    mediumScore: "Opkomend potentieel. Strategische investeringen kunnen uw AI-gereedheid versnellen.",
-                    highScore: "Quantum-niveau voorbereiding. U staat aan de voorhoede van AI-innovatie."
+                    lowScore: {
+                        title: "Dringende Transformatie Nodig",
+                        description: "Uw AI-infrastructuur vereist een uitgebreide herontwerp. Onmiddellijke strategische interventies zijn cruciaal voor toekomstige concurrentiekracht."
+                    },
+                    mediumScore: {
+                        title: "Opkomend AI-potentieel",
+                        description: "U heeft een solide basis. Strategische investeringen en gerichte verbeteringen kunnen uw AI-gereedheid aanzienlijk versnellen."
+                    },
+                    highScore: {
+                        title: "Quantum-niveau Voorbereiding",
+                        description: "Gefeliciteerd! U staat aan de voorhoede van AI-innovatie, met een robuust, aanpasbaar en toekomstgericht AI-ecosysteem."
+                    }
                 }
             }
         };
@@ -339,41 +351,56 @@
             infrastructure: 0,
             adaptability: 0,
             governance: 0,
-            intelligence: 0
+            intelligence: 0,
+            security: 0
         };
 
         function setLanguage(lang) {
-            // Update language button styles
+            currentLanguage = lang;
+            questions = translations[currentLanguage].questions;
+            resetQuiz();
+            updateLanguageButtons();
+        }
+
+        function updateLanguageButtons() {
             document.querySelectorAll('.language-btn').forEach(btn => {
                 btn.classList.remove('active');
-                btn.setAttribute('aria-checked', 'false');
             });
-            const selectedBtn = document.querySelector(`.language-btn[onclick="setLanguage('${lang}')"]`);
-            selectedBtn.classList.add('active');
-            selectedBtn.setAttribute('aria-checked', 'true');
+            document.querySelector(`.language-btn[onclick="setLanguage('${currentLanguage}')"]`).classList.add('active');
+        }
 
-            // Reset quiz
-            currentLanguage = lang;
+        function resetQuiz() {
             currentQuestionIndex = 0;
-            questions = translations[currentLanguage].questions;
             scores = {
                 infrastructure: 0,
                 adaptability: 0,
                 governance: 0,
-                intelligence: 0
+                intelligence: 0,
+                security: 0
             };
+            document.getElementById('quiz-section').style.display = 'flex';
+            document.getElementById('results-section').style.display = 'none';
+            document.getElementById('resources-section').style.display = 'none';
+            renderQuestion();
+        }
 
-            // Reset UI
-            document.getElementById('quiz-container').style.display = 'block';
-            document.getElementById('results').style.display = 'none';
-            document.getElementById('resources').style.display = 'none';
-            document.getElementById('question-text').textContent = questions[currentQuestionIndex].text;
-            
-            // Update button texts
-            const optionButtons = document.querySelectorAll('.option-button');
-            optionButtons[0].textContent = translations[currentLanguage].options.fullyPrepared;
-            optionButtons[1].textContent = translations[currentLanguage].options.partiallyReady;
-            optionButtons[2].textContent = translations[currentLanguage].options.notReady;
+        function renderQuestion() {
+            const currentQuestion = questions[currentQuestionIndex];
+            const questionElement = document.getElementById('quantum-question');
+            const answerOptionsElement = document.getElementById('answer-options');
+
+            questionElement.textContent = currentQuestion.text;
+            answerOptionsElement.innerHTML = `
+                <button class="quantum-btn" onclick="answerQuestion('yes')">
+                    ${translations[currentLanguage].options.fullyPrepared}
+                </button>
+                <button class="quantum-btn" onclick="answerQuestion('partial')">
+                    ${translations[currentLanguage].options.partiallyReady}
+                </button>
+                <button class="quantum-btn" onclick="answerQuestion('no')">
+                    ${translations[currentLanguage].options.notReady}
+                </button>
+            `;
         }
 
         function answerQuestion(response) {
@@ -388,7 +415,7 @@
             currentQuestionIndex++;
 
             if (currentQuestionIndex < questions.length) {
-                document.getElementById('question-text').textContent = questions[currentQuestionIndex].text;
+                renderQuestion();
             } else {
                 showResults();
             }
@@ -399,29 +426,30 @@
             const maxPossibleScore = questions.length * 3;
             const percentageScore = Math.round((totalScore / maxPossibleScore) * 100);
 
-            let resultDescription;
+            document.getElementById('quiz-section').style.display = 'none';
+            document.getElementById('results-section').style.display = 'flex';
+            document.getElementById('quantum-score').textContent = `${percentageScore}%`;
+
+            let resultConfig;
             if (percentageScore < 40) {
-                resultDescription = translations[currentLanguage].results.lowScore;
+                resultConfig = translations[currentLanguage].results.lowScore;
             } else if (percentageScore < 70) {
-                resultDescription = translations[currentLanguage].results.mediumScore;
+                resultConfig = translations[currentLanguage].results.mediumScore;
             } else {
-                resultDescription = translations[currentLanguage].results.highScore;
+                resultConfig = translations[currentLanguage].results.highScore;
             }
 
-            document.getElementById('quiz-container').style.display = 'none';
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.style.display = 'block';
-            document.getElementById('result-percentage').textContent = `${percentageScore}%`;
-            document.getElementById('result-description').textContent = resultDescription;
+            document.getElementById('results-title').textContent = resultConfig.title;
+            document.getElementById('results-description').textContent = resultConfig.description;
         }
 
         function showResources() {
-            document.getElementById('results').style.display = 'none';
-            document.getElementById('resources').style.display = 'block';
+            document.getElementById('results-section').style.display = 'none';
+            document.getElementById('resources-section').style.display = 'grid';
         }
 
-        // Initialize with first question
-        document.getElementById('question-text').textContent = questions[currentQuestionIndex].text;
+        // Initialize first question
+        renderQuestion();
     </script>
 </body>
 </html>
