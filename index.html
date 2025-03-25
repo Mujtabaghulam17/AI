@@ -49,6 +49,28 @@
             -webkit-text-fill-color: transparent;
         }
 
+        .language-selector {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .language-btn {
+            background: transparent;
+            border: 2px solid var(--accent-blue);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            margin: 0 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .language-btn.active {
+            background: var(--accent-blue);
+            color: var(--bg-primary);
+        }
+
         .quiz-question {
             font-size: 1.5rem;
             margin-bottom: 1.5rem;
@@ -88,7 +110,7 @@
                 width: 95%;
                 padding: 1rem;
             }
-            .option-button {
+            .option-button, .language-btn {
                 display: block;
                 width: 100%;
                 margin: 10px 0;
@@ -100,6 +122,11 @@
     <div class="container">
         <div class="logo">FutureProof AI</div>
         
+        <div class="language-selector">
+            <button class="language-btn active" onclick="setLanguage('en')">English</button>
+            <button class="language-btn" onclick="setLanguage('nl')">Nederlands</button>
+        </div>
+
         <div id="quiz-container">
             <div class="quiz-question" id="question-text">
                 Is your data infrastructure quantum-ready?
@@ -119,32 +146,110 @@
     </div>
 
     <script>
-        const questions = [
-            { 
-                text: "Is your data infrastructure quantum-ready?",
-                category: "infrastructure"
+        const translations = {
+            en: {
+                questions: [
+                    { 
+                        text: "Is your data infrastructure quantum-ready?",
+                        category: "infrastructure"
+                    },
+                    { 
+                        text: "Can your AI adapt to emerging cognitive technologies?",
+                        category: "adaptability"
+                    },
+                    { 
+                        text: "Do you have ethical AI governance frameworks?",
+                        category: "governance"
+                    },
+                    { 
+                        text: "Are your AI models capable of cross-domain learning?",
+                        category: "intelligence"
+                    }
+                ],
+                options: {
+                    fullyPrepared: "Fully Prepared",
+                    partiallyReady: "Partially Ready",
+                    notReady: "Not Ready"
+                },
+                results: {
+                    title: "AI Readiness Quantum Score",
+                    lowScore: "Urgent transformation needed. Your AI infrastructure requires comprehensive redesign.",
+                    mediumScore: "Emerging potential. Strategic investments can accelerate your AI readiness.",
+                    highScore: "Quantum-level preparedness. You're at the forefront of AI innovation."
+                }
             },
-            { 
-                text: "Can your AI adapt to emerging cognitive technologies?",
-                category: "adaptability"
-            },
-            { 
-                text: "Do you have ethical AI governance frameworks?",
-                category: "governance"
-            },
-            { 
-                text: "Are your AI models capable of cross-domain learning?",
-                category: "intelligence"
+            nl: {
+                questions: [
+                    { 
+                        text: "Is uw data-infrastructuur quantum-klaar?",
+                        category: "infrastructure"
+                    },
+                    { 
+                        text: "Kan uw AI zich aanpassen aan opkomende cognitieve technologieën?",
+                        category: "adaptability"
+                    },
+                    { 
+                        text: "Beschikt u over ethische AI-governancekaders?",
+                        category: "governance"
+                    },
+                    { 
+                        text: "Zijn uw AI-modellen in staat tot domein-overschrijdend leren?",
+                        category: "intelligence"
+                    }
+                ],
+                options: {
+                    fullyPrepared: "Volledig Voorbereid",
+                    partiallyReady: "Gedeeltelijk Gereed",
+                    notReady: "Niet Gereed"
+                },
+                results: {
+                    title: "AI Gereedheids Quantum Score",
+                    lowScore: "Dringende transformatie nodig. Uw AI-infrastructuur vereist een uitgebreide herontwerp.",
+                    mediumScore: "Opkomend potentieel. Strategische investeringen kunnen uw AI-gereedheid versnellen.",
+                    highScore: "Quantum-niveau voorbereiding. U staat aan de voorhoede van AI-innovatie."
+                }
             }
-        ];
+        };
 
+        let currentLanguage = 'en';
         let currentQuestionIndex = 0;
+        let questions = translations[currentLanguage].questions;
         let scores = {
             infrastructure: 0,
             adaptability: 0,
             governance: 0,
             intelligence: 0
         };
+
+        function setLanguage(lang) {
+            // Update language button styles
+            document.querySelectorAll('.language-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`.language-btn[onclick="setLanguage('${lang}')"]`).classList.add('active');
+
+            // Reset quiz
+            currentLanguage = lang;
+            currentQuestionIndex = 0;
+            questions = translations[currentLanguage].questions;
+            scores = {
+                infrastructure: 0,
+                adaptability: 0,
+                governance: 0,
+                intelligence: 0
+            };
+
+            // Reset UI
+            document.getElementById('quiz-container').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('question-text').textContent = questions[currentQuestionIndex].text;
+            
+            // Update button texts
+            const optionButtons = document.querySelectorAll('.option-button');
+            optionButtons[0].textContent = translations[currentLanguage].options.fullyPrepared;
+            optionButtons[1].textContent = translations[currentLanguage].options.partiallyReady;
+            optionButtons[2].textContent = translations[currentLanguage].options.notReady;
+        }
 
         function answerQuestion(response) {
             const currentQuestion = questions[currentQuestionIndex];
@@ -171,11 +276,11 @@
 
             let resultDescription;
             if (percentageScore < 40) {
-                resultDescription = "Urgent transformation needed. Your AI infrastructure requires comprehensive redesign.";
+                resultDescription = translations[currentLanguage].results.lowScore;
             } else if (percentageScore < 70) {
-                resultDescription = "Emerging potential. Strategic investments can accelerate your AI readiness.";
+                resultDescription = translations[currentLanguage].results.mediumScore;
             } else {
-                resultDescription = "Quantum-level preparedness. You're at the forefront of AI innovation.";
+                resultDescription = translations[currentLanguage].results.highScore;
             }
 
             document.getElementById('quiz-container').style.display = 'none';
@@ -184,6 +289,9 @@
             document.getElementById('result-percentage').textContent = `${percentageScore}%`;
             document.getElementById('result-description').textContent = resultDescription;
         }
+
+        // Initialize with first question
+        document.getElementById('question-text').textContent = questions[currentQuestionIndex].text;
     </script>
 </body>
 </html>
