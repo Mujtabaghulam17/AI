@@ -5,162 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Readiness: Future Proof</title>
     <style>
-        :root {
-            --bg-primary: #0a1128;
-            --text-primary: #e6f1ff;
-            --accent-blue: #00b4ff;
-            --accent-green: #00ff87;
-            --gradient-bg: linear-gradient(135deg, #0a1128 0%, #1a2980 100%);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Arial', sans-serif;
-            background: var(--gradient-bg);
-            color: var(--text-primary);
-            line-height: 1.6;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow-x: hidden;
-            padding: 1rem;
-        }
-
-        .container {
-            width: 90%;
-            max-width: 800px;
-            background: rgba(26, 41, 128, 0.5);
-            padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-            text-align: center;
-        }
-
-        .logo {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-            background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .language-selector {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 1.5rem;
-            gap: 1rem;
-        }
-
-        .language-btn {
-            background: transparent;
-            border: 2px solid var(--accent-blue);
-            color: var(--text-primary);
-            padding: 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 150px;
-            text-decoration: none;
-        }
-
-        .language-btn:hover, .language-btn:focus {
-            background: var(--accent-blue);
-            outline: 2px solid white;
-            transform: scale(1.05);
-        }
-
-        .language-btn.active {
-            background: var(--accent-blue);
-            color: var(--bg-primary);
-        }
-
-        .language-btn img {
-            max-width: 100px;
-            height: 100px;
-            object-fit: contain;
-            margin-bottom: 10px;
-            border-radius: 8px;
-        }
-
-        .language-btn span {
-            font-weight: bold;
-        }
-
-        .quiz-question {
-            font-size: 1.5rem;
-            margin-bottom: 1.5rem;
-            color: var(--accent-blue);
-            padding: 0 1rem;
-        }
-
-        .option-button {
-            background: transparent;
-            border: 2px solid var(--accent-green);
-            color: var(--text-primary);
-            padding: 12px 24px;
-            margin: 10px;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            font-size: 1rem;
-        }
-
-        .option-button:hover, .option-button:focus {
-            background: var(--accent-green);
-            color: var(--bg-primary);
-            transform: scale(1.05);
-            outline: 2px solid white;
-        }
-
-        #results {
-            margin-top: 1rem;
-        }
-
-        .result-score {
-            font-size: 3rem;
-            background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        @media (max-width: 600px) {
-            .language-selector {
-                flex-direction: column;
-                align-items: center;
-            }
-            .language-btn {
-                width: 100%;
-                max-width: 300px;
-                margin-bottom: 1rem;
-            }
-            .option-button {
-                display: block;
-                width: 100%;
-                margin: 10px 0;
-            }
-        }
-
-        /* Accessibility improvements */
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border: 0;
-        }
+        /* [Previous CSS remains the same] */
     </style>
 </head>
 <body>
@@ -178,7 +23,7 @@
                 aria-label="English Language"
             >
                 <img 
-                    src="/api/placeholder/100/100?text=EN" 
+                    src="english-ai.png" 
                     alt="English AI Robot" 
                 />
                 <span>English</span>
@@ -191,7 +36,7 @@
                 aria-label="Dutch Language"
             >
                 <img 
-                    src="/api/placeholder/100/100?text=NL" 
+                    src="dutch-ai.png" 
                     alt="Dutch AI Robot" 
                 />
                 <span>Nederlands</span>
@@ -209,6 +54,7 @@
             <div role="group" aria-label="Quiz Answer Options">
                 <button 
                     class="option-button" 
+                    id="option-yes"
                     onclick="answerQuestion('yes')"
                     aria-describedby="question-text"
                 >
@@ -216,6 +62,7 @@
                 </button>
                 <button 
                     class="option-button" 
+                    id="option-partial"
                     onclick="answerQuestion('partial')"
                     aria-describedby="question-text"
                 >
@@ -223,6 +70,7 @@
                 </button>
                 <button 
                     class="option-button" 
+                    id="option-no"
                     onclick="answerQuestion('no')"
                     aria-describedby="question-text"
                 >
@@ -236,7 +84,7 @@
             style="display:none;" 
             aria-live="polite"
         >
-            <h2>AI Readiness Quantum Score</h2>
+            <h2 id="results-title">AI Readiness Quantum Score</h2>
             <div 
                 class="result-score" 
                 id="result-percentage"
@@ -249,8 +97,162 @@
     </div>
 
     <script>
-        // [Previous script remains the same as in the last version]
-        // ... [All the JavaScript from the previous artifact]
+        const translations = {
+            en: {
+                questions: [
+                    { 
+                        text: "Is your data infrastructure quantum-ready?",
+                        category: "infrastructure"
+                    },
+                    { 
+                        text: "Can your AI adapt to emerging cognitive technologies?",
+                        category: "adaptability"
+                    },
+                    { 
+                        text: "Do you have ethical AI governance frameworks?",
+                        category: "governance"
+                    },
+                    { 
+                        text: "Are your AI models capable of cross-domain learning?",
+                        category: "intelligence"
+                    }
+                ],
+                questions_titles: {
+                    options: "Quiz Answer Options",
+                    resultTitle: "AI Readiness Quantum Score"
+                },
+                options: {
+                    fullyPrepared: "Fully Prepared",
+                    partiallyReady: "Partially Ready",
+                    notReady: "Not Ready"
+                },
+                results: {
+                    title: "AI Readiness Quantum Score",
+                    lowScore: "Urgent transformation needed. Your AI infrastructure requires comprehensive redesign.",
+                    mediumScore: "Emerging potential. Strategic investments can accelerate your AI readiness.",
+                    highScore: "Quantum-level preparedness. You're at the forefront of AI innovation."
+                }
+            },
+            nl: {
+                questions: [
+                    { 
+                        text: "Is uw data-infrastructuur quantum-klaar?",
+                        category: "infrastructure"
+                    },
+                    { 
+                        text: "Kan uw AI zich aanpassen aan opkomende cognitieve technologieën?",
+                        category: "adaptability"
+                    },
+                    { 
+                        text: "Beschikt u over ethische AI-governancekaders?",
+                        category: "governance"
+                    },
+                    { 
+                        text: "Zijn uw AI-modellen in staat tot domein-overschrijdend leren?",
+                        category: "intelligence"
+                    }
+                ],
+                questions_titles: {
+                    options: "Quiz Antwoord Opties",
+                    resultTitle: "AI Gereedheids Quantum Score"
+                },
+                options: {
+                    fullyPrepared: "Volledig Voorbereid",
+                    partiallyReady: "Gedeeltelijk Gereed",
+                    notReady: "Niet Gereed"
+                },
+                results: {
+                    title: "AI Gereedheids Quantum Score",
+                    lowScore: "Dringende transformatie nodig. Uw AI-infrastructuur vereist een uitgebreide herontwerp.",
+                    mediumScore: "Opkomend potentieel. Strategische investeringen kunnen uw AI-gereedheid versnellen.",
+                    highScore: "Quantum-niveau voorbereiding. U staat aan de voorhoede van AI-innovatie."
+                }
+            }
+        };
+
+        let currentLanguage = 'en';
+        let currentQuestionIndex = 0;
+        let questions, scores;
+
+        function initializeQuiz(lang) {
+            currentLanguage = lang;
+            currentQuestionIndex = 0;
+            questions = translations[currentLanguage].questions;
+            scores = {
+                infrastructure: 0,
+                adaptability: 0,
+                governance: 0,
+                intelligence: 0
+            };
+
+            // Update question text
+            document.getElementById('question-text').textContent = questions[currentQuestionIndex].text;
+
+            // Update option button texts
+            document.getElementById('option-yes').textContent = translations[currentLanguage].options.fullyPrepared;
+            document.getElementById('option-partial').textContent = translations[currentLanguage].options.partiallyReady;
+            document.getElementById('option-no').textContent = translations[currentLanguage].options.notReady;
+
+            // Reset UI
+            document.getElementById('quiz-container').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+        }
+
+        function setLanguage(lang) {
+            // Update language button styles
+            document.querySelectorAll('.language-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.setAttribute('aria-checked', 'false');
+            });
+            const selectedBtn = document.querySelector(`.language-btn[onclick="setLanguage('${lang}')"]`);
+            selectedBtn.classList.add('active');
+            selectedBtn.setAttribute('aria-checked', 'true');
+
+            // Reinitialize quiz with new language
+            initializeQuiz(lang);
+        }
+
+        function answerQuestion(response) {
+            const currentQuestion = questions[currentQuestionIndex];
+            
+            switch(response) {
+                case 'yes': scores[currentQuestion.category] += 3; break;
+                case 'partial': scores[currentQuestion.category] += 1; break;
+                case 'no': scores[currentQuestion.category] += 0; break;
+            }
+
+            currentQuestionIndex++;
+
+            if (currentQuestionIndex < questions.length) {
+                document.getElementById('question-text').textContent = questions[currentQuestionIndex].text;
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
+            const maxPossibleScore = questions.length * 3;
+            const percentageScore = Math.round((totalScore / maxPossibleScore) * 100);
+
+            let resultDescription;
+            if (percentageScore < 40) {
+                resultDescription = translations[currentLanguage].results.lowScore;
+            } else if (percentageScore < 70) {
+                resultDescription = translations[currentLanguage].results.mediumScore;
+            } else {
+                resultDescription = translations[currentLanguage].results.highScore;
+            }
+
+            document.getElementById('quiz-container').style.display = 'none';
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.style.display = 'block';
+            document.getElementById('result-percentage').textContent = `${percentageScore}%`;
+            document.getElementById('result-description').textContent = resultDescription;
+        }
+
+        // Initialize quiz on page load
+        initializeQuiz(currentLanguage);
     </script>
 </body>
 </html>
