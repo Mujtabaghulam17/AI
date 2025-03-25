@@ -359,54 +359,321 @@
                 }
             },
             nl: {
-                // Dutch translations would be similarly structured
                 questions: [
                     {
                         text: "Is uw data-infrastructuur quantum-klaar?",
                         category: "infrastructure",
                         details: "Beoordeel de quantum-compute-paraatheid van uw rekenarchitectuur"
                     },
-                    // ... other questions translated
+                    {
+                        text: "Kan uw AI zich aanpassen aan opkomende cognitieve technologieën?",
+                        category: "adaptability",
+                        details: "Evalueer de leervaardigheid en kennisoverdracht van uw AI"
+                    },
+                    {
+                        text: "Heeft u uitgebreide ethische AI-governancekaders?",
+                        category: "governance",
+                        details: "Meet de benadering van uw organisatie voor verantwoorde AI-ontwikkeling"
+                    },
+                    {
+                        text: "Zijn uw AI-modellen in staat tot cross-domein intelligentie?",
+                        category: "intelligence",
+                        details: "Beoordeel het vermogen van uw AI om verschillende domeinen te begrijpen en te leren"
+                    },
+                    {
+                        text: "Hoe geavanceerd zijn uw AI-beveiliging en privacyprotocollen?",
+                        category: "security",
+                        details: "Evalueer de AI-beschermings- en data-privacystrategieën van uw organisatie"
+                    }
                 ],
-                // ... rest of Dutch translations
+                options: {
+                    fullyPrepared: "Quantum-niveau Gereedheid",
+                    partiallyReady: "Opkomend Potentieel",
+                    notReady: "Transformatie Vereist"
+                },
+                results: {
+                    lowScore: {
+                        title: "Dringende Transformatie Nodig",
+                        description: "Uw AI-infrastructuur vereist een alomvattende herontwerp. Onmiddellijke strategische interventies zijn cruciaal voor toekomstige concurrentiekracht."
+                    },
+                    mediumScore: {
+                        title: "Opkomend AI-potentieel",
+                        description: "U heeft een solide basis. Strategische investeringen en gerichte verbeteringen kunnen uw AI-paraatheid aanzienlijk versnellen."
+                    },
+                    highScore: {
+                        title: "Quantum-niveau Paraatheid",
+                        description: "Gefeliciteerd! U staat aan de voorhoede van AI-innovatie, met een robuust, adaptief en toekomstgericht AI-ecosysteem."
+                    }
+                }
             }
         };
-
-        // Implementation Strategies and other script content remain the same as in the previous artifact
-        // (The complete script from the previous submission would be placed here)
-        // For brevity, I'm omitting the full script, but it would include all the previous JavaScript functions
 
         const implementationStrategies = {
             en: {
                 infrastructureScaling: {
                     title: "Advanced Infrastructure Scaling Strategies",
                     description: `
-                    Comprehensive Approach to AI Infrastructure Scaling:
+Comprehensive Approach to AI Infrastructure Scaling:
 
-                    1. Cloud-Native Architecture
-                    - Implement microservices-based infrastructure
-                    - Utilize containerization (Kubernetes, Docker)
-                    - Develop auto-scaling mechanisms
+1. Cloud-Native Architecture
+- Implement microservices-based infrastructure
+- Utilize containerization (Kubernetes, Docker)
+- Develop auto-scaling mechanisms
 
-                    2. Distributed Computing
-                    - Leverage edge computing technologies
-                    - Implement federated learning protocols
-                    - Optimize data distribution and processing
+2. Distributed Computing
+- Leverage edge computing technologies
+- Implement federated learning protocols
+- Optimize data distribution and processing
 
-                    // ... rest of the implementation strategies
+3. Quantum-Ready Infrastructure
+- Design hybrid classical-quantum computing architectures
+- Develop quantum algorithm simulation frameworks
+- Prepare data pipelines for quantum computational models
                     `
                 },
-                // ... other strategies
+                securityGovernance: {
+                    title: "AI Security and Ethical Governance",
+                    description: `
+Robust AI Security and Ethical Framework:
+
+1. Comprehensive Security Protocols
+- Implement multi-layered AI security architectures
+- Develop advanced threat detection mechanisms
+- Create AI-specific cybersecurity response strategies
+
+2. Ethical AI Governance
+- Establish transparent AI decision-making frameworks
+- Develop bias detection and mitigation protocols
+- Create cross-functional AI ethics review boards
+                    `
+                }
             },
             nl: {
-                // Dutch translations of strategies
+                infrastructureScaling: {
+                    title: "Geavanceerde Infrastructuur Schaalstrategieën",
+                    description: `
+Uitgebreide Aanpak voor AI-infrastructuurschaling:
+
+1. Cloud-Native Architectuur
+- Implementeer microservices-gebaseerde infrastructuur
+- Gebruik containerisatie (Kubernetes, Docker)
+- Ontwikkel auto-scaling mechanismen
+
+2. Gedistribueerd Rekenen
+- Benutten van edge computing technologieën
+- Implementeer federaal leren protocollen
+- Optimaliseer data-distributie en -verwerking
+                    `
+                }
             }
         };
 
-        // Key functions like setLanguage(), renderQuestion(), answerQuestion(), 
-        // showResults(), showResources(), renderResourcesSection(), 
-        // showImplementationDetails(), and closeImplementationDetails() 
-        // would be included here exactly as in the previous submission
+        let currentQuestionSet = translations.en.questions;
+        let currentOptions = translations.en.options;
+        let currentResults = translations.en.results;
+        let currentQuestionIndex = 0;
+        let userResponses = [];
+
+        function renderQuestion() {
+            const questionEl = document.getElementById('quantum-question');
+            const answerOptionsEl = document.getElementById('answer-options');
+            
+            if (currentQuestionIndex >= currentQuestionSet.length) {
+                calculateResults();
+                return;
+            }
+            
+            const currentQuestion = currentQuestionSet[currentQuestionIndex];
+            questionEl.textContent = currentQuestion.text;
+            
+            answerOptionsEl.innerHTML = `
+                <button class="quantum-btn" onclick="answerQuestion('fullyPrepared')">${currentOptions.fullyPrepared}</button>
+                <button class="quantum-btn" onclick="answerQuestion('partiallyReady')">${currentOptions.partiallyReady}</button>
+                <button class="quantum-btn" onclick="answerQuestion('notReady')">${currentOptions.notReady}</button>
+            `;
+        }
+
+        function answerQuestion(response) {
+            userResponses.push({
+                category: currentQuestionSet[currentQuestionIndex].category,
+                response: response
+            });
+            
+            currentQuestionIndex++;
+            renderQuestion();
+        }
+
+        function calculateResults() {
+            const quizSection = document.getElementById('quiz-section');
+            const resultsSection = document.getElementById('results-section');
+            const scoreEl = document.getElementById('quantum-score');
+            const descriptionEl = document.getElementById('results-description');
+            
+            const categoryScores = {
+                infrastructure: 0,
+                adaptability: 0,
+                governance: 0,
+                intelligence: 0,
+                security: 0
+            };
+            
+            userResponses.forEach(response => {
+                switch(response.response) {
+                    case 'fullyPrepared':
+                        categoryScores[response.category] = 100;
+                        break;
+                    case 'partiallyReady':
+                        categoryScores[response.category] = 50;
+                        break;
+                    case 'notReady':
+                        categoryScores[response.category] = 0;
+                        break;
+                }
+            });
+            
+            const overallScore = Object.values(categoryScores).reduce((a, b) => a + b, 0) / 5;
+            
+            scoreEl.textContent = `${Math.round(overallScore)}%`;
+            
+            let resultData;
+            if (overallScore < 33) {
+                resultData = currentResults.lowScore;
+            } else if (overallScore < 66) {
+                resultData = currentResults.mediumScore;
+            } else {
+                resultData = currentResults.highScore;
+            }
+            
+            descriptionEl.textContent = resultData.description;
+            
+            quizSection.style.display = 'none';
+            resultsSection.style.display = 'flex';
+        }
+
+        function showResources() {
+            const resourcesSection = document.getElementById('resources-section');
+            const quizSection = document.getElementById('quiz-section');
+            const resultsSection = document.getElementById('results-section');
+            
+            quizSection.style.display = 'none';
+            resultsSection.style.display = 'none';
+            resourcesSection.style.display = 'grid';
+            
+            renderResourcesSection();
+        }
+
+        function renderResourcesSection() {
+            const resourcesSection = document.getElementById('resources-section');
+            const currentLanguage = document.querySelector('.language-btn.active').textContent === 'English' ? 'en' : 'nl';
+            
+            const resources = {
+                en: [
+                    {
+                        icon: 'fa-solid fa-cloud',
+                        title: 'Quantum Infrastructure',
+                        details: 'Advanced cloud computing and quantum-ready infrastructure strategies',
+                        actionText: 'Explore Infrastructure',
+                        strategy: 'infrastructureScaling'
+                    },
+                    {
+                        icon: 'fa-solid fa-shield-alt',
+                        title: 'AI Security Protocols',
+                        details: 'Comprehensive AI protection and ethical governance frameworks',
+                        actionText: 'View Security Strategies',
+                        strategy: 'securityGovernance'
+                    },
+                    {
+                        icon: 'fa-solid fa-brain',
+                        title: 'Cognitive Adaptability',
+                        details: 'Cross-domain intelligence and learning flexibility techniques',
+                        actionText: 'Discover Adaptability',
+                        strategy: 'cognitiveAdaptability'
+                    },
+                    {
+                        icon: 'fa-solid fa-globe',
+                        title: 'Global AI Trends',
+                        details: 'Emerging technologies and future AI innovation landscape',
+                        actionText: 'Explore Trends',
+                        strategy: 'globalAITrends'
+                    }
+                ],
+                nl: [
+                    {
+                        icon: 'fa-solid fa-cloud',
+                        title: 'Quantum Infrastructuur',
+                        details: 'Geavanceerde cloud computing en quantum-klare infrastructuurstrategieën',
+                        actionText: 'Infrastructuur Verkennen',
+                        strategy: 'infrastructureScaling'
+                    }
+                ]
+            };
+
+            resourcesSection.innerHTML = resources[currentLanguage].map(resource => `
+                <div class="resource-card">
+                    <div class="resource-icon">
+                        <i class="${resource.icon}"></i>
+                    </div>
+                    <h3>${resource.title}</h3>
+                    <div class="resource-details">${resource.details}</div>
+                    <a href="#" class="action-btn" onclick="showImplementationDetails('${resource.strategy}', '${currentLanguage}')">
+                        ${resource.actionText}
+                    </a>
+                </div>
+            `).join('');
+        }
+
+        function showImplementationDetails(strategy, language) {
+            const implementationDetailsEl = document.getElementById('implementation-details');
+            const titleEl = document.getElementById('implementation-title');
+            const descriptionEl = document.getElementById('implementation-description');
+            
+            const strategyData = implementationStrategies[language][strategy];
+            
+            titleEl.innerHTML = `<h2 class="quantum-logo">${strategyData.title}</h2>`;
+            descriptionEl.innerHTML = `<pre>${strategyData.description}</pre>`;
+            
+            implementationDetailsEl.style.display = 'block';
+        }
+
+        function closeImplementationDetails() {
+            const implementationDetailsEl = document.getElementById('implementation-details');
+            implementationDetailsEl.style.display = 'none';
+        }
+
+        function setLanguage(lang) {
+            const languageButtons = document.querySelectorAll('.language-btn');
+            languageButtons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (lang === 'en') {
+                currentQuestionSet = translations.en.questions;
+                currentOptions = translations.en.options;
+                currentResults = translations.en.results;
+            } else {
+                currentQuestionSet = translations.nl.questions;
+                currentOptions = translations.nl.options;
+                currentResults = translations.nl.results;
+            }
+
+            // Reset quiz to first question
+            currentQuestionIndex = 0;
+            userResponses = [];
+            
+            const quizSection = document.getElementById('quiz-section');
+            const resultsSection = document.getElementById('results-section');
+            const resourcesSection = document.getElementById('resources-section');
+            
+            quizSection.style.display = 'flex';
+            resultsSection.style.display = 'none';
+            resourcesSection.style.display = 'none';
+            
+            renderQuestion();
+
+            // Update resources section if it's currently displayed
+            if (resourcesSection.style.display === 'grid') {
+                renderResourcesSection();
+            }
+        }
 
         // Initialize first question
         renderQuestion();
