@@ -11,6 +11,7 @@ import ProactiveGreeting from './ProactiveGreeting.tsx';
 import ParentDashboard from './ParentDashboard.tsx';
 import { generateContentWithRetry } from '../api/gemini.ts';
 import { Type } from "@google/genai";
+import { type SubscriptionTier, canAccessSubject } from '../utils/subscriptionTiers.ts';
 import type { MasteryScore, StudyPlan, Mistake, PlannerWeek, Badge, DailyQuests as DailyQuestsType, Quest, ProgressHistoryEntry, FlashcardDeck, ChatMessage, User, SquadData } from '../data/data.ts';
 
 type Subject = 'Nederlands' | 'Engels' | 'Natuurkunde' | 'Biologie' | 'Economie' | 'Geschiedenis' | 'Scheikunde' | 'Bedrijfseconomie' | 'Wiskunde A' | 'Wiskunde B' | 'Frans' | 'Duits' | 'Wiskunde' | 'Nask 1' | 'Nask 2' | 'Aardrijkskunde' | 'Maatschappijkunde';
@@ -42,6 +43,8 @@ interface DashboardProps {
     onOpenChatForQuestionGeneration: () => void;
     onOpenZenZone: () => void;
     isPremium: boolean;
+    subscriptionTier?: SubscriptionTier;
+    primarySubject?: string;
     onUpgrade: (reason: string) => void;
     onAnalyzeMistakes: () => void;
     hasMistakes: boolean;
@@ -109,7 +112,7 @@ const ThemeToggle = ({ theme, setTheme }: { theme: 'light' | 'dark'; setTheme: (
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
     const {
-        masteryScores, onStartSession, isGeneratingSession, onReset, studyStreak, level, xp, xpForNextLevel, examDate, setExamDate, studyPlan, generatePlan, updatePlan, isGeneratingPlan, onToggleTask, onReviewWeek, onShowInfo, onStartActionableTask, repetitionQueue, onStartRepetition, onOpenChat, onOpenChatForQuestionGeneration, onOpenZenZone, isPremium, onUpgrade, onAnalyzeMistakes, hasMistakes, currentSubject, onSubjectChange, answerLimitReached, dailyAnswers, theme, setTheme, allBadges, earnedBadges, dailyQuests, onGenerateDailyQuests, isGeneratingQuests, onStartQuest, onStartExam, onOpenUploadModal, progressHistory, flashcardDecks, onAddFlashcardDeck, onCreateDeckFromSummary, onGenerateProgressAnalysis, onOpenAuthModal, proactiveInsight, onProactiveAction, onShareDeck, squadData, user, onLogout, onLogoClick, onOpenSquadOfficeHours, onGenerateParentTips, parentTip, isGeneratingParentTip, onOpenExamPredictor, examLevel
+        masteryScores, onStartSession, isGeneratingSession, onReset, studyStreak, level, xp, xpForNextLevel, examDate, setExamDate, studyPlan, generatePlan, updatePlan, isGeneratingPlan, onToggleTask, onReviewWeek, onShowInfo, onStartActionableTask, repetitionQueue, onStartRepetition, onOpenChat, onOpenChatForQuestionGeneration, onOpenZenZone, isPremium, subscriptionTier = 'free', primarySubject, onUpgrade, onAnalyzeMistakes, hasMistakes, currentSubject, onSubjectChange, answerLimitReached, dailyAnswers, theme, setTheme, allBadges, earnedBadges, dailyQuests, onGenerateDailyQuests, isGeneratingQuests, onStartQuest, onStartExam, onOpenUploadModal, progressHistory, flashcardDecks, onAddFlashcardDeck, onCreateDeckFromSummary, onGenerateProgressAnalysis, onOpenAuthModal, proactiveInsight, onProactiveAction, onShareDeck, squadData, user, onLogout, onLogoClick, onOpenSquadOfficeHours, onGenerateParentTips, parentTip, isGeneratingParentTip, onOpenExamPredictor, examLevel
     } = props;
 
     const [activeTab, setActiveTab] = useState<DashboardTab>('sessie');
@@ -389,20 +392,34 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                         </button>
                         {isSubjectPickerOpen && (
                             <div className="subject-picker-dropdown">
-                                {subjects.map(subject => (
-                                    <button
-                                        key={subject}
-                                        className={`subject-picker-item ${subject === currentSubject ? 'active' : ''}`}
-                                        onClick={() => {
-                                            onSubjectChange(subject);
-                                            setIsSubjectPickerOpen(false);
-                                        }}
-                                    >
-                                        <span className="subject-picker-icon">{subjectIcons[subject]}</span>
-                                        {subject}
-                                        {subject === currentSubject && <svg className="checkmark-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"></path></svg>}
-                                    </button>
-                                ))}
+                                {subjects.map(subject => {
+                                    const isLocked = !canAccessSubject(subscriptionTier, subject, primarySubject);
+                                    return (
+                                        <button
+                                            key={subject}
+                                            className={`subject-picker-item ${subject === currentSubject ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                                            onClick={() => {
+                                                if (isLocked) {
+                                                    onUpgrade(`om toegang te krijgen tot ${subject}.`);
+                                                } else {
+                                                    onSubjectChange(subject);
+                                                }
+                                                setIsSubjectPickerOpen(false);
+                                            }}
+                                            style={{ opacity: isLocked ? 0.6 : 1, display: 'flex', justifyContent: 'space-between' }}
+                                        >
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <span className="subject-picker-icon">{subjectIcons[subject]}</span>
+                                                {subject}
+                                            </span>
+                                            {isLocked ? (
+                                                <span style={{ fontSize: '14px' }}>🔒</span>
+                                            ) : (
+                                                subject === currentSubject && <svg className="checkmark-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"></path></svg>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

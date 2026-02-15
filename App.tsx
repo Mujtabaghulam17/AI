@@ -1167,6 +1167,8 @@ JSON output.`;
                             updateQuestProgress('use_zen_zone');
                         }}
                         isPremium={isPremium}
+                        subscriptionTier={subscriptionTier}
+                        primarySubject={primarySubject}
                         onUpgrade={openUpgradeModal}
                         onAnalyzeMistakes={() => {
                             if (!isPremium) {
