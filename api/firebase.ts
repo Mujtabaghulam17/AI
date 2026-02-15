@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import type { SubscriptionTier } from '../utils/subscriptionTiers';
 import { getAnalytics, isSupported } from "firebase/analytics";
 import {
     getAuth,
@@ -107,7 +108,9 @@ export type { FirebaseUser };
 export interface UserFirestoreData {
     email?: string;
     name?: string;
-    isPremium: boolean;
+    isPremium: boolean; // Legacy — kept for backward compatibility
+    subscriptionTier?: SubscriptionTier; // 'free' | 'focus' | 'totaal'
+    primarySubject?: string; // The subject chosen at onboarding (used for Focus tier gating)
     stripeCustomerId?: string;
     subscriptionId?: string;
     subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing';
@@ -177,8 +180,40 @@ export const saveUserDataToFirestore = async (userId: string, data: Partial<User
 };
 
 /**
- * Update premium status in Firestore
+ * Update subscription tier in Firestore
  */
+export const updateSubscriptionTier = async (
+    userId: string,
+    subscriptionTier: SubscriptionTier,
+    stripeCustomerId?: string,
+    subscriptionId?: string,
+    subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing'
+): Promise<boolean> => {
+    if (!db) {
+        console.warn("Firestore not initialized, cannot update subscription tier");
+        return false;
+    }
+
+    try {
+        const docRef = doc(db, "users", userId);
+        const isPremium = subscriptionTier !== 'free';
+        await updateDoc(docRef, {
+            subscriptionTier,
+            isPremium, // Keep in sync for backward compatibility
+            ...(stripeCustomerId && { stripeCustomerId }),
+            ...(subscriptionId && { subscriptionId }),
+            ...(subscriptionStatus && { subscriptionStatus }),
+            updatedAt: new Date().toISOString()
+        });
+        console.log(`✅ Subscription tier updated: ${subscriptionTier}`);
+        return true;
+    } catch (error) {
+        console.error("Error updating subscription tier:", error);
+        return false;
+    }
+};
+
+/** @deprecated Use updateSubscriptionTier instead */
 export const updatePremiumStatus = async (
     userId: string,
     isPremium: boolean,
@@ -186,26 +221,13 @@ export const updatePremiumStatus = async (
     subscriptionId?: string,
     subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing'
 ): Promise<boolean> => {
-    if (!db) {
-        console.warn("Firestore not initialized, cannot update premium status");
-        return false;
-    }
-
-    try {
-        const docRef = doc(db, "users", userId);
-        await updateDoc(docRef, {
-            isPremium,
-            ...(stripeCustomerId && { stripeCustomerId }),
-            ...(subscriptionId && { subscriptionId }),
-            ...(subscriptionStatus && { subscriptionStatus }),
-            updatedAt: new Date().toISOString()
-        });
-        console.log(`✅ Premium status updated: ${isPremium}`);
-        return true;
-    } catch (error) {
-        console.error("Error updating premium status:", error);
-        return false;
-    }
+    return updateSubscriptionTier(
+        userId,
+        isPremium ? 'focus' : 'free',
+        stripeCustomerId,
+        subscriptionId,
+        subscriptionStatus
+    );
 };
 
 /**
@@ -230,6 +252,7 @@ export const createUserDocument = async (userId: string, email?: string, name?: 
             email,
             name,
             isPremium: false,
+            subscriptionTier: 'free',
             level: 1,
             xp: 0,
             studyStreak: 0,

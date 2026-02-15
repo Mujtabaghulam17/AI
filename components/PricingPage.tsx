@@ -1,22 +1,23 @@
 import React from 'react';
+import type { SubscriptionTier } from '../utils/subscriptionTiers';
 
 interface PricingPageProps {
     onBack: () => void;
-    onUpgrade: (plan: 'focus' | 'totaal' | 'gezin') => void;
+    onUpgrade: (plan: 'focus' | 'totaal') => void;
     isPremium: boolean;
-    currentPlan?: 'starter' | 'focus' | 'totaal' | 'gezin';
+    currentTier?: SubscriptionTier;
 }
 
 const plans = [
     {
-        id: 'starter' as const,
+        id: 'free' as const,
         name: 'Starter',
         price: 0,
         tagline: 'Probeer het uit',
         features: [
-            { text: '5 vragen per dag', included: true },
+            { text: '5 AI-vragen per dag', included: true },
             { text: '1 vak naar keuze', included: true },
-            { text: 'Ouder Dashboard', included: false },
+            { text: 'Examenvoorspeller', included: false },
             { text: 'Zen Mode', included: false },
         ],
         cta: 'Start gratis',
@@ -29,11 +30,11 @@ const plans = [
         tagline: 'Je struikelvak',
         features: [
             { text: 'Onbeperkt 1 vak', included: true },
-            { text: 'Zen Mode', included: true },
-            { text: 'Ouder Dashboard', included: true },
+            { text: 'Examenvoorspeller (1 vak)', included: true },
+            { text: 'Zen Mode & AI-coach', included: true },
             { text: 'Meerdere vakken', included: false },
         ],
-        cta: 'Kies 1 vak',
+        cta: 'Kies Focus',
         popular: false,
     },
     {
@@ -42,31 +43,17 @@ const plans = [
         price: 24.99,
         tagline: 'Alles onbeperkt',
         features: [
-            { text: 'Alle vakken', included: true },
-            { text: 'VWO / HAVO / VMBO', included: true },
+            { text: 'Alle vakken onbeperkt', included: true },
+            { text: 'Examenvoorspeller (alles)', included: true },
             { text: 'Persoonlijk leerplan', included: true },
-            { text: '24/7 coach', included: true },
+            { text: '24/7 AI-coach', included: true },
         ],
         cta: 'Start 7 dagen gratis',
         popular: true,
     },
-    {
-        id: 'gezin' as const,
-        name: 'Gezin',
-        price: 64.99,
-        tagline: 'Tot 3 kinderen',
-        features: [
-            { text: '3 accounts', included: true },
-            { text: 'Alle niveaus', included: true },
-            { text: 'Centraal dashboard', included: true },
-            { text: 'Alle features', included: true },
-        ],
-        cta: 'Kies gezinsplan',
-        popular: false,
-    },
 ];
 
-const PricingPage: React.FC<PricingPageProps> = ({ onBack, onUpgrade, isPremium, currentPlan = 'starter' }) => {
+const PricingPage: React.FC<PricingPageProps> = ({ onBack, onUpgrade, isPremium, currentTier = 'free' }) => {
     return (
         <div style={{
             minHeight: '100vh',
@@ -117,8 +104,8 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, onUpgrade, isPremium,
                     marginBottom: '64px',
                 }}>
                     {plans.map((plan) => {
-                        const isCurrentPlan = currentPlan === plan.id;
-                        const canUpgrade = plan.id !== 'starter' && !isCurrentPlan;
+                        const isCurrentPlan = currentTier === plan.id;
+                        const canUpgrade = plan.id !== 'free' && !isCurrentPlan;
 
                         return (
                             <div
@@ -197,7 +184,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, onUpgrade, isPremium,
                                 </div>
 
                                 <button
-                                    onClick={() => canUpgrade ? onUpgrade(plan.id as 'focus' | 'totaal' | 'gezin') : undefined}
+                                    onClick={() => canUpgrade ? onUpgrade(plan.id as 'focus' | 'totaal') : undefined}
                                     style={{
                                         width: '100%',
                                         padding: '14px',

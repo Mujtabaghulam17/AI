@@ -2,18 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { redirectToCheckout, isStripeConfigured } from '../api/stripe';
 import { useAuth0 } from '../auth/FirebaseAuthProvider';
 import { getUserIdFromAuth } from '../utils/userSync';
+import { getTierDisplayInfo } from '../utils/subscriptionTiers';
 
 interface PaymentModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onPaymentSuccess: () => void;
+    onPaymentSuccess: (plan: 'focus' | 'totaal') => void;
+    selectedPlan?: 'focus' | 'totaal';
 }
 
-const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onPaymentSuccess }) => {
+const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onPaymentSuccess, selectedPlan = 'focus' }) => {
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState('');
     const { user } = useAuth0();
     const stripeConfigured = isStripeConfigured();
+    const planInfo = getTierDisplayInfo(selectedPlan);
 
     useEffect(() => {
         if (isOpen) {
@@ -37,7 +40,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onPaymentS
                 setStatus('success');
             }, 2000);
             setTimeout(() => {
-                onPaymentSuccess();
+                onPaymentSuccess(selectedPlan);
             }, 3500);
             return;
         }
@@ -54,6 +57,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onPaymentS
         const result = await redirectToCheckout({
             userId,
             userEmail: user?.email,
+            plan: selectedPlan,
         });
 
         if (result.error) {
@@ -74,7 +78,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onPaymentS
                         </svg>
                     </div>
                     <h2>Betaling Geslaagd!</h2>
-                    <p>Welkom bij Premium. Je hebt nu volledige toegang.</p>
+                    <p>Welkom bij {planInfo.name}. Je hebt nu {selectedPlan === 'totaal' ? 'volledige' : 'Focus'} toegang.</p>
                 </div>
             );
         }
@@ -99,8 +103,25 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onPaymentS
         return (
             <form onSubmit={handleSubmit}>
                 <div style={{ textAlign: 'center', margin: '16px 0 32px 0' }}>
+                    <div style={{
+                        display: 'inline-block',
+                        background: selectedPlan === 'totaal'
+                            ? 'linear-gradient(135deg, rgba(34, 211, 238, 0.1), rgba(167, 139, 250, 0.1))'
+                            : 'rgba(255,255,255,0.05)',
+                        border: selectedPlan === 'totaal'
+                            ? '1px solid rgba(34, 211, 238, 0.3)'
+                            : '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '12px',
+                        padding: '4px 16px',
+                        marginBottom: '12px',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        color: selectedPlan === 'totaal' ? '#22d3ee' : 'var(--text-muted)',
+                    }}>
+                        {planInfo.name}
+                    </div>
                     <p style={{ color: 'var(--subtle-text)', margin: '0' }}>Totaalbedrag</p>
-                    <strong style={{ fontSize: '36px' }}>€14,99</strong>
+                    <strong style={{ fontSize: '36px' }}>{planInfo.label.replace('/mnd', '')}</strong>
                     <span style={{ color: 'var(--subtle-text)' }}>/maand</span>
                 </div>
 
@@ -118,7 +139,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onPaymentS
                     </div>
                 )}
 
-                <button type="submit" className="button" disabled={status === 'loading'}>
+                <button type="submit" className="button" disabled={status === 'loading'} style={{
+                    background: selectedPlan === 'totaal'
+                        ? 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)'
+                        : undefined,
+                }}>
                     {status === 'loading' ? <div className="button-spinner"></div> : 'Betaal Veilig met Stripe'}
                 </button>
 
@@ -147,7 +172,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onPaymentS
                 {status !== 'success' && (
                     <div style={{ textAlign: 'center', marginBottom: '16px' }}>
                         <h2 style={{ color: 'var(--primary-color)' }}>Rond je Upgrade af</h2>
-                        <p style={{ color: 'var(--subtle-text)' }}>Verzeker je van premium toegang.</p>
+                        <p style={{ color: 'var(--subtle-text)' }}>Verzeker je van {selectedPlan === 'totaal' ? 'volledige' : 'Focus'} toegang.</p>
                     </div>
                 )}
                 {renderContent()}

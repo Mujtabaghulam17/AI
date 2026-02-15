@@ -107,7 +107,7 @@ export const loadAndMergeUserData = async (
  */
 export const syncCriticalData = async (
     userId: string,
-    data: Pick<UserFirestoreData, 'isPremium' | 'stripeCustomerId' | 'subscriptionId' | 'subscriptionStatus'>
+    data: Pick<UserFirestoreData, 'isPremium' | 'subscriptionTier' | 'stripeCustomerId' | 'subscriptionId' | 'subscriptionStatus'>
 ): Promise<boolean> => {
     return forceSync(userId, data);
 };
@@ -140,6 +140,8 @@ export const prepareDataForSync = (appState: {
     subjectData: any;
     globalPulseCheck: { year: number; week: number } | null;
     isPremium: boolean;
+    subscriptionTier?: string;
+    primarySubject?: string;
 }): Partial<UserFirestoreData> => {
     return {
         level: appState.level,
@@ -149,5 +151,7 @@ export const prepareDataForSync = (appState: {
         subjectData: appState.subjectData,
         globalPulseCheck: appState.globalPulseCheck,
         isPremium: appState.isPremium,
+        ...(appState.subscriptionTier && { subscriptionTier: appState.subscriptionTier as any }),
+        ...(appState.primarySubject && { primarySubject: appState.primarySubject }),
     };
 };

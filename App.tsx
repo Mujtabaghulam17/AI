@@ -45,7 +45,8 @@ import { generateContentWithRetry, cleanAndParseJSON, ai } from './api/gemini.ts
 import { decode, decodeAudioData } from './utils/audio.ts';
 import { debouncedSync, loadAndMergeUserData, getUserIdFromAuth, prepareDataForSync, forceSync } from './utils/userSync.ts';
 import { checkPendingPayment } from './api/stripe.ts';
-import { updatePremiumStatus } from './api/firebase.ts';
+import { updateSubscriptionTier } from './api/firebase.ts';
+import { type SubscriptionTier, isPaidTier, isAiLimitReached, isChatLimitReached, canAccessSubject, canUseExamPredictor, DAILY_AI_LIMIT_FREE, DAILY_CHAT_LIMIT_FREE } from './utils/subscriptionTiers';
 import {
     dutchExamQuestions, englishExamQuestions, natuurkundeExamQuestions, biologieExamQuestions, economieExamQuestions,
     geschiedenisExamQuestions, scheikundeExamQuestions, bedrijfseconomieExamQuestions, wiskundeAExamQuestions, wiskundeBExamQuestions,
@@ -60,8 +61,8 @@ import { mockSquadData } from './data/mockSquad.ts';
 import { useAuth0 } from './auth/FirebaseAuthProvider.tsx';
 import type { Question, MasteryScore, StudyPlan, Mistake, ChatMessage, PlannerTask, PlannerWeek, MasterySessionContent, SubjectSpecificData, SessionProposal, ActiveSession, Badge, DailyQuests, Quest, ExamSimulationState, ExamResult, FlashcardDeck, ProgressHistoryEntry, User, MoodEntry, SquadData, AiFeedback } from './data/data.ts';
 
-const CHAT_MESSAGE_LIMIT_FREE = 10;
-const DAILY_ANSWER_LIMIT_FREE = 15;
+const CHAT_MESSAGE_LIMIT_FREE = DAILY_CHAT_LIMIT_FREE;
+const DAILY_ANSWER_LIMIT_FREE = DAILY_AI_LIMIT_FREE;
 const MODEL_NAME = 'gemini-2.0-flash';
 
 type Subject = 'Nederlands' | 'Engels' | 'Natuurkunde' | 'Biologie' | 'Economie' | 'Geschiedenis' | 'Scheikunde' | 'Bedrijfseconomie' | 'Wiskunde A' | 'Wiskunde B' | 'Frans' | 'Duits' | 'Wiskunde' | 'Nask 1' | 'Nask 2' | 'Aardrijkskunde' | 'Maatschappijkunde';
@@ -180,13 +181,16 @@ const App = () => {
     const [isSendingMessage, setIsSendingMessage] = useState(false);
     const chatSession = useRef<Chat | null>(null);
 
-    const [isPremium, setIsPremium] = useState(() => getInitialState('isPremium', false));
+    const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>(() => getInitialState('subscriptionTier', 'free'));
+    const isPremium = isPaidTier(subscriptionTier);
+    const [primarySubject, setPrimarySubject] = useState<string>(() => getInitialState('primarySubject', ''));
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const [upgradeModalReason, setUpgradeModalReason] = useState<string>('');
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [selectedPlan, setSelectedPlan] = useState<'focus' | 'totaal'>('focus');
 
-    const chatLimitReached = !isPremium && chatUsage.count >= CHAT_MESSAGE_LIMIT_FREE;
-    const answerLimitReached = !isPremium && dailyAnswers.count >= DAILY_ANSWER_LIMIT_FREE;
+    const chatLimitReached = isChatLimitReached(subscriptionTier, chatUsage.count);
+    const answerLimitReached = isAiLimitReached(subscriptionTier, dailyAnswers.count);
 
     const [isZenZoneOpen, setIsZenZoneOpen] = useState(false);
     const [isExamPredictorOpen, setIsExamPredictorOpen] = useState(false);
@@ -422,7 +426,13 @@ const App = () => {
                             setSubjectData(prev => ({ ...prev, ...data.subjectData }));
                         }
                         if (data.globalPulseCheck) setGlobalPulseCheck(data.globalPulseCheck);
-                        if (data.isPremium !== undefined) setIsPremium(data.isPremium);
+                        if (data.subscriptionTier) {
+                            setSubscriptionTier(data.subscriptionTier);
+                        } else if (data.isPremium !== undefined) {
+                            // Legacy migration: convert boolean to tier
+                            setSubscriptionTier(data.isPremium ? 'focus' : 'free');
+                        }
+                        if (data.primarySubject) setPrimarySubject(data.primarySubject);
                         console.log("📥 User data loaded from Firestore");
                     }
                 } catch (error) {
@@ -441,12 +451,15 @@ const App = () => {
         const { success, sessionId } = checkPendingPayment();
         if (success && sessionId) {
             console.log("🎉 Payment success detected!");
-            setIsPremium(true);
+            // Default to 'focus' when returning from Stripe without specific plan info
+            const returnedPlan = sessionStorage.getItem('pending_plan') as 'focus' | 'totaal' || 'focus';
+            setSubscriptionTier(returnedPlan);
+            sessionStorage.removeItem('pending_plan');
 
-            // Update Firestore with premium status
+            // Update Firestore with subscription tier
             const userId = getUserIdFromAuth(user as any);
             if (userId) {
-                updatePremiumStatus(userId, true);
+                updateSubscriptionTier(userId, returnedPlan);
             }
         }
     }, [user]);
@@ -464,10 +477,12 @@ const App = () => {
             subjectData,
             globalPulseCheck,
             isPremium,
+            subscriptionTier,
+            primarySubject,
         });
 
         debouncedSync(userId, dataToSync);
-    }, [level, xp, studyStreak, earnedBadges, subjectData, globalPulseCheck, isPremium, user, isAuthenticated]);
+    }, [level, xp, studyStreak, earnedBadges, subjectData, globalPulseCheck, isPremium, subscriptionTier, primarySubject, user, isAuthenticated]);
 
     useEffect(() => {
         if (!isAuthLoading) {
@@ -498,7 +513,8 @@ const App = () => {
     useEffect(() => { localStorage.setItem('subjectData', JSON.stringify(subjectData)); }, [subjectData]);
     useEffect(() => { localStorage.setItem('level', JSON.stringify(level)); }, [level]);
     useEffect(() => { localStorage.setItem('xp', JSON.stringify(xp)); }, [xp]);
-    useEffect(() => { localStorage.setItem('isPremium', JSON.stringify(isPremium)); }, [isPremium]);
+    useEffect(() => { localStorage.setItem('isPremium', JSON.stringify(isPremium)); localStorage.setItem('subscriptionTier', JSON.stringify(subscriptionTier)); }, [subscriptionTier]);
+    useEffect(() => { localStorage.setItem('primarySubject', JSON.stringify(primarySubject)); }, [primarySubject]);
     useEffect(() => { localStorage.setItem('chatUsage', JSON.stringify(chatUsage)); }, [chatUsage]);
     useEffect(() => { localStorage.setItem('dailyAnswers', JSON.stringify(dailyAnswers)); }, [dailyAnswers]);
     useEffect(() => { localStorage.setItem('earnedBadges', JSON.stringify(earnedBadges)); }, [earnedBadges]);
@@ -609,6 +625,14 @@ const App = () => {
     const openUpgradeModal = (reason: string) => {
         setUpgradeModalReason(reason);
         setIsUpgradeModalOpen(true);
+    };
+
+    const handleSelectPlan = (plan: 'focus' | 'totaal') => {
+        setSelectedPlan(plan);
+        setIsUpgradeModalOpen(false);
+        setIsPaymentModalOpen(true);
+        // Store pending plan for post-payment redirect
+        sessionStorage.setItem('pending_plan', plan);
     };
 
     const handleGenerateSessionProposal = async (focusSkillOverride?: string) => {
@@ -1065,13 +1089,11 @@ JSON output.`;
                     <PricingPage
                         onBack={() => setCurrentScreen(isAuthenticated ? 'DASHBOARD' : 'WELCOME')}
                         onUpgrade={(plan) => {
-                            const planNames = { focus: 'Focus plan', totaal: 'Totaal plan', gezin: 'Gezin plan' };
-                            setUpgradeModalReason(planNames[plan] || 'plan');
-                            setIsUpgradeModalOpen(true);
+                            handleSelectPlan(plan);
                             setCurrentScreen(isAuthenticated ? 'DASHBOARD' : 'WELCOME');
                         }}
                         isPremium={isPremium}
-                        currentPlan="starter"
+                        currentTier={subscriptionTier}
                     />
                 )}
 
@@ -1307,13 +1329,13 @@ JSON output.`;
                     isSending={isSendingMessage} chatLimitReached={chatLimitReached}
                 />
 
-                <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onUpgrade={() => setIsPaymentModalOpen(true)} reason={upgradeModalReason} />
-                <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} onPaymentSuccess={() => {
-                    setIsPremium(true);
-                    // Force sync premium status to Firestore immediately
+                <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onUpgrade={handleSelectPlan} reason={upgradeModalReason} currentTier={subscriptionTier} />
+                <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} selectedPlan={selectedPlan} onPaymentSuccess={(plan) => {
+                    setSubscriptionTier(plan);
+                    // Force sync subscription tier to Firestore immediately
                     const userId = getUserIdFromAuth(user as any);
                     if (userId) {
-                        forceSync(userId, { isPremium: true });
+                        forceSync(userId, { isPremium: true, subscriptionTier: plan });
                     }
                 }} />
                 <ZenZoneModal isOpen={isZenZoneOpen} onClose={() => setIsZenZoneOpen(false)} affirmation={affirmation} onGenerateAffirmation={async () => {

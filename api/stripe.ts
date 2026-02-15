@@ -1,4 +1,6 @@
 import { loadStripe, Stripe } from '@stripe/stripe-js';
+import { getPaymentLinkForTier } from '../utils/subscriptionTiers';
+import type { SubscriptionTier } from '../utils/subscriptionTiers';
 
 // Get Stripe publishable key from environment
 const getStripeKey = (): string => {
@@ -48,12 +50,14 @@ export const getStripe = (): Promise<Stripe | null> => {
 export const redirectToCheckout = async (options: {
     userId: string;
     userEmail?: string;
+    plan?: 'focus' | 'totaal';
     priceId?: string;
     successUrl?: string;
     cancelUrl?: string;
 }): Promise<{ error?: string }> => {
-    // First try: Use pre-generated Payment Link from env
-    const paymentLink = getPaymentLink();
+    // Get payment link based on selected plan
+    const plan = options.plan || 'focus';
+    const paymentLink = getPaymentLinkForTier(plan);
 
     if (paymentLink) {
         try {
