@@ -68,6 +68,10 @@ export const redirectToCheckout = async (options: {
             }
             url.searchParams.set('client_reference_id', options.userId);
 
+            // Also store plan in localStorage as a fallback (survives redirects, unlike sessionStorage)
+            localStorage.setItem('glowexamen_pending_plan', plan);
+            localStorage.setItem('glowexamen_pending_user', options.userId);
+
             window.location.href = url.toString();
             return {};
         } catch (err: any) {
@@ -76,16 +80,7 @@ export const redirectToCheckout = async (options: {
         }
     }
 
-    // Fallback: Try constructing a Stripe hosted payment page URL
-    const priceId = options.priceId || getPriceId();
-
-    if (!priceId) {
-        return { error: "Geen prijsconfiguratie gevonden. Stel VITE_STRIPE_PAYMENT_LINK in via het Stripe Dashboard." };
-    }
-
-    // Use Stripe's buy page URL format (requires Payment Link to be created in Dashboard)
-    // Without a backend, we redirect to the Stripe payment link
-    return { error: "Stripe Payment Link is niet geconfigureerd. Maak een Payment Link aan in je Stripe Dashboard en stel VITE_STRIPE_PAYMENT_LINK in als environment variable." };
+    return { error: "Stripe Payment Link is niet geconfigureerd. Stel VITE_STRIPE_PAYMENT_LINK in via het Stripe Dashboard." };
 };
 
 /**
@@ -142,35 +137,54 @@ export const isStripeConfigured = (): boolean => {
 };
 
 /**
- * Handle payment success callback (called when user returns from Stripe)
+ * Check for pending payment on page load.
+ * 
+ * Detection strategy (in priority order):
+ * 1. URL contains `?payment=success` — Stripe redirect with custom after_completion URL
+ * 2. URL path matches Stripe success pattern — some Payment Links redirect back automatically
+ * 3. localStorage has pending_plan — user was redirected to Stripe and came back
+ * 
+ * The webhook (Layer 2) is the source of truth, this is for immediate UI feedback.
  */
-export const handlePaymentSuccess = (sessionId: string): void => {
-    // The actual premium status update happens via webhook
-    // This is just for immediate UI feedback
-    console.log("Payment success callback received, session:", sessionId);
-
-    // Store session ID temporarily for verification
-    sessionStorage.setItem('pending_payment_session', sessionId);
-};
-
-/**
- * Check for pending payment success on page load
- */
-export const checkPendingPayment = (): { success: boolean; sessionId?: string; canceled?: boolean } => {
+export const checkPendingPayment = (): {
+    success: boolean;
+    plan?: 'focus' | 'totaal';
+    userId?: string;
+    canceled?: boolean;
+} => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
-    const sessionId = urlParams.get('session_id');
+    const planFromUrl = urlParams.get('plan') as 'focus' | 'totaal' | null;
 
-    if (paymentStatus === 'success' && sessionId) {
+    // Strategy 1: Explicit success params in URL
+    if (paymentStatus === 'success') {
+        const plan = planFromUrl || getPendingPlanFromStorage();
+        const userId = localStorage.getItem('glowexamen_pending_user') || undefined;
+        clearPendingPaymentData();
         // Clear URL params
         window.history.replaceState({}, document.title, window.location.pathname);
-        return { success: true, sessionId };
+        return { success: true, plan: plan || 'focus', userId };
     }
 
+    // Strategy 2: Payment canceled
     if (paymentStatus === 'canceled') {
+        clearPendingPaymentData();
         window.history.replaceState({}, document.title, window.location.pathname);
         return { success: false, canceled: true };
     }
 
     return { success: false };
+};
+
+/** Read pending plan from localStorage (survives Stripe redirects) */
+const getPendingPlanFromStorage = (): 'focus' | 'totaal' | null => {
+    const plan = localStorage.getItem('glowexamen_pending_plan');
+    if (plan === 'focus' || plan === 'totaal') return plan;
+    return null;
+};
+
+/** Clear all pending payment data from localStorage */
+const clearPendingPaymentData = (): void => {
+    localStorage.removeItem('glowexamen_pending_plan');
+    localStorage.removeItem('glowexamen_pending_user');
 };

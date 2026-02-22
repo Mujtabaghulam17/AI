@@ -446,20 +446,18 @@ const App = () => {
         loadUserData();
     }, [isAuthenticated, user]);
 
-    // Check for payment success on mount
+    // Check for payment success on mount (Layer 1: client-side detection)
+    // The webhook (Layer 2) is the source of truth; this provides immediate UI feedback
     useEffect(() => {
-        const { success, sessionId } = checkPendingPayment();
-        if (success && sessionId) {
-            console.log("🎉 Payment success detected!");
-            // Default to 'focus' when returning from Stripe without specific plan info
-            const returnedPlan = sessionStorage.getItem('pending_plan') as 'focus' | 'totaal' || 'focus';
-            setSubscriptionTier(returnedPlan);
-            sessionStorage.removeItem('pending_plan');
+        const result = checkPendingPayment();
+        if (result.success && result.plan) {
+            console.log(`🎉 Payment success detected! Plan: ${result.plan}`);
+            setSubscriptionTier(result.plan);
 
             // Update Firestore with subscription tier
             const userId = getUserIdFromAuth(user as any);
             if (userId) {
-                updateSubscriptionTier(userId, returnedPlan);
+                updateSubscriptionTier(userId, result.plan);
             }
         }
     }, [user]);
@@ -631,8 +629,7 @@ const App = () => {
         setSelectedPlan(plan);
         setIsUpgradeModalOpen(false);
         setIsPaymentModalOpen(true);
-        // Store pending plan for post-payment redirect
-        sessionStorage.setItem('pending_plan', plan);
+        // Plan tracking is handled in stripe.ts redirectToCheckout via localStorage
     };
 
     const handleGenerateSessionProposal = async (focusSkillOverride?: string) => {
