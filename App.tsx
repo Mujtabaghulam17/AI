@@ -463,6 +463,8 @@ const App = () => {
     }, [user]);
 
     // Debounced sync to Firestore when data changes
+    // NOTE: subscriptionTier/isPremium/primarySubject are NOT synced here.
+    // They are only updated via updateSubscriptionTier() to avoid race conditions.
     useEffect(() => {
         const userId = getUserIdFromAuth(user as any);
         if (!userId || !isAuthenticated) return;
@@ -474,13 +476,10 @@ const App = () => {
             earnedBadges,
             subjectData,
             globalPulseCheck,
-            isPremium,
-            subscriptionTier,
-            primarySubject,
         });
 
         debouncedSync(userId, dataToSync);
-    }, [level, xp, studyStreak, earnedBadges, subjectData, globalPulseCheck, isPremium, subscriptionTier, primarySubject, user, isAuthenticated]);
+    }, [level, xp, studyStreak, earnedBadges, subjectData, globalPulseCheck, user, isAuthenticated]);
 
     useEffect(() => {
         if (!isAuthLoading) {

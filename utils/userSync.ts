@@ -130,7 +130,12 @@ export const getUserIdFromAuth = (user: { sub?: string; email?: string } | null)
 };
 
 /**
- * Prepare data for Firestore sync from app state
+ * Prepare data for Firestore sync from app state.
+ * 
+ * NOTE: subscriptionTier, isPremium, and primarySubject are intentionally
+ * EXCLUDED here. They must only be updated via updateSubscriptionTier()
+ * (from payment success or webhook), never by the general debounced sync.
+ * Otherwise the default 'free' value overwrites Firestore on page load.
  */
 export const prepareDataForSync = (appState: {
     level: number;
@@ -139,9 +144,6 @@ export const prepareDataForSync = (appState: {
     earnedBadges: string[];
     subjectData: any;
     globalPulseCheck: { year: number; week: number } | null;
-    isPremium: boolean;
-    subscriptionTier?: string;
-    primarySubject?: string;
 }): Partial<UserFirestoreData> => {
     return {
         level: appState.level,
@@ -150,8 +152,5 @@ export const prepareDataForSync = (appState: {
         earnedBadges: appState.earnedBadges,
         subjectData: appState.subjectData,
         globalPulseCheck: appState.globalPulseCheck,
-        isPremium: appState.isPremium,
-        ...(appState.subscriptionTier && { subscriptionTier: appState.subscriptionTier as any }),
-        ...(appState.primarySubject && { primarySubject: appState.primarySubject }),
     };
 };
