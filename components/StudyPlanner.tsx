@@ -289,66 +289,140 @@ const StudyPlanner: React.FC<StudyPlannerProps> = (props) => {
                 <div>
                     {/* Progress header */}
                     <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '8px',
-                        marginTop: readOnly ? '0px' : '8px'
+                        padding: '14px 16px',
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.06), rgba(168, 85, 247, 0.06))',
+                        border: '1px solid rgba(34, 211, 238, 0.12)',
+                        marginBottom: '16px',
+                        marginTop: readOnly ? '0px' : '8px',
                     }}>
-                        {daysLeft !== null && (
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '10px',
+                        }}>
+                            {daysLeft !== null && (
+                                <span style={{
+                                    fontWeight: 700,
+                                    color: daysLeft <= 7 ? '#f87171' : daysLeft <= 30 ? '#fbbf24' : '#22d3ee',
+                                    fontSize: '0.9rem',
+                                }}>
+                                    {daysLeft === 0 ? '🔥 Vandaag is het examen!' : `📅 ${daysLeft} ${daysLeft === 1 ? 'dag' : 'dagen'} tot het examen`}
+                                </span>
+                            )}
                             <span style={{
                                 fontWeight: 700,
-                                color: daysLeft <= 7 ? '#f87171' : daysLeft <= 30 ? '#fbbf24' : 'var(--cyan)',
-                                fontSize: '0.95rem',
+                                fontSize: '0.9rem',
+                                color: progressPercentage === 100 ? '#34d399' : 'var(--text-main)',
                             }}>
-                                {daysLeft === 0 ? '🔥 Vandaag is het examen!' : `📅 ${daysLeft} ${daysLeft === 1 ? 'dag' : 'dagen'} tot het examen`}
+                                {progressPercentage === 100 ? '🎉 ' : ''}{completedTasks}/{totalTasks} taken ({progressPercentage}%)
                             </span>
-                        )}
-                        <span style={{ fontWeight: 700, color: progressPercentage === 100 ? '#34d399' : 'var(--text-main)' }}>
-                            {progressPercentage === 100 ? '🎉 ' : ''}{progressPercentage}% voltooid
-                        </span>
-                    </div>
-                    <div className="progress-bar">
-                        <div className="progress-fill skill-progress-fill" style={{ width: `${progressPercentage}%` }}></div>
+                        </div>
+                        <div style={{
+                            height: '6px',
+                            borderRadius: '3px',
+                            background: 'rgba(255,255,255,0.06)',
+                            overflow: 'hidden',
+                        }}>
+                            <div style={{
+                                height: '100%',
+                                borderRadius: '3px',
+                                width: `${progressPercentage}%`,
+                                background: progressPercentage === 100
+                                    ? '#34d399'
+                                    : 'linear-gradient(90deg, #22d3ee, #a78bfa)',
+                                transition: 'width 0.5s ease',
+                            }} />
+                        </div>
                     </div>
 
                     {/* Week list */}
-                    <div style={{ maxHeight: '400px', overflowY: 'auto', marginTop: '16px', paddingRight: '10px' }}>
-                        {studyPlan.weeks.map((week, weekIndex) => (
-                            <div key={weekIndex} className="planner-week" style={{
-                                marginBottom: '16px',
-                                padding: '16px',
-                                borderRadius: '12px',
-                                background: 'rgba(255, 255, 255, 0.02)',
-                                border: '1px solid rgba(255, 255, 255, 0.06)',
-                            }}>
-                                <h4 style={{
-                                    marginBottom: '10px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    fontSize: '0.95rem',
+                    <div style={{ maxHeight: '420px', overflowY: 'auto', paddingRight: '6px' }}>
+                        {studyPlan.weeks.map((week, weekIndex) => {
+                            const weekTasks = week.tasks.filter(t => !t.infoType);
+                            const weekCompleted = weekTasks.filter(t => t.completed).length;
+                            const weekTotal = weekTasks.length;
+                            const weekPct = weekTotal > 0 ? Math.round((weekCompleted / weekTotal) * 100) : 0;
+                            const isCurrentWeek = weekPct > 0 && weekPct < 100;
+
+                            return (
+                                <div key={weekIndex} style={{
+                                    marginBottom: '12px',
+                                    padding: '16px',
+                                    borderRadius: '12px',
+                                    background: isCurrentWeek
+                                        ? 'rgba(34, 211, 238, 0.04)'
+                                        : 'rgba(255, 255, 255, 0.02)',
+                                    border: isCurrentWeek
+                                        ? '1px solid rgba(34, 211, 238, 0.15)'
+                                        : '1px solid rgba(255, 255, 255, 0.06)',
+                                    transition: 'all 0.2s ease',
                                 }}>
-                                    <span style={{
-                                        background: 'linear-gradient(135deg, var(--cyan), var(--purple))',
-                                        color: '#0f0f1a',
-                                        fontWeight: 800,
-                                        fontSize: '0.7rem',
-                                        padding: '2px 8px',
-                                        borderRadius: '6px',
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        marginBottom: '10px',
                                     }}>
-                                        W{week.week_number}
-                                    </span>
-                                    {week.theme}
-                                </h4>
-                                {week.tasks.map((task, taskIndex) => renderTask(task, weekIndex, taskIndex, { onToggleTask, onShowInfo, onStartActionableTask, readOnly }))}
-                                {!readOnly && onReviewWeek && (
-                                    <button className="button-tertiary" onClick={() => onReviewWeek(week)} style={{ marginTop: '8px', fontSize: '13px' }}>
-                                        📝 Review Mijn Week
-                                    </button>
-                                )}
-                            </div>
-                        ))}
+                                        <h4 style={{
+                                            margin: 0,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            fontSize: '0.92rem',
+                                        }}>
+                                            <span style={{
+                                                background: weekPct === 100
+                                                    ? '#34d399'
+                                                    : 'linear-gradient(135deg, var(--cyan), var(--purple))',
+                                                color: '#0f0f1a',
+                                                fontWeight: 800,
+                                                fontSize: '0.68rem',
+                                                padding: '2px 8px',
+                                                borderRadius: '6px',
+                                            }}>
+                                                {weekPct === 100 ? '✓' : `W${week.week_number}`}
+                                            </span>
+                                            {week.theme}
+                                        </h4>
+                                        <span style={{
+                                            fontSize: '0.72rem',
+                                            fontWeight: 600,
+                                            color: weekPct === 100 ? '#34d399' : 'var(--subtle-text)',
+                                        }}>
+                                            {weekCompleted}/{weekTotal}
+                                        </span>
+                                    </div>
+
+                                    {/* Per-week progress bar */}
+                                    {weekTotal > 0 && (
+                                        <div style={{
+                                            height: '3px',
+                                            borderRadius: '2px',
+                                            background: 'rgba(255,255,255,0.06)',
+                                            overflow: 'hidden',
+                                            marginBottom: '10px',
+                                        }}>
+                                            <div style={{
+                                                height: '100%',
+                                                borderRadius: '2px',
+                                                width: `${weekPct}%`,
+                                                background: weekPct === 100 ? '#34d399' : '#22d3ee',
+                                                transition: 'width 0.3s ease',
+                                            }} />
+                                        </div>
+                                    )}
+
+                                    {week.tasks.map((task, taskIndex) => renderTask(task, weekIndex, taskIndex, { onToggleTask, onShowInfo, onStartActionableTask, readOnly }))}
+                                    {!readOnly && onReviewWeek && (
+                                        <button className="button-tertiary" onClick={() => onReviewWeek(week)} style={{ marginTop: '8px', fontSize: '13px' }}>
+                                            📝 Review Mijn Week
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                     {!readOnly && updatePlan && (
                         <div style={{ marginTop: '12px' }}>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getCEDomains, getExamProgramSummary, type ExamDomain } from '../data/examInfo.ts';
+import { getCEDomains, type ExamDomain } from '../data/examInfo.ts';
 import { generateContentWithRetry, cleanAndParseJSON } from '../api/gemini.ts';
 import { Type } from "@google/genai";
 
@@ -14,23 +14,33 @@ interface ExamPredictorModalProps {
 
 interface PredictedQuestion {
     question: string;
-    source_text: string; // Context/passage/source that accompanies the question
+    source_text: string;
     answer: string;
     explanation: string;
     difficulty: 'makkelijk' | 'gemiddeld' | 'moeilijk';
     domain_code: string;
-    question_type: string; // e.g. 'open vraag', 'meerkeuze', 'citaatvraag', etc.
+    question_type: string;
 }
+
+type AnswerResult = {
+    studentAnswer: string;
+    isRevealed: boolean;
+};
 
 const ExamPredictorModal: React.FC<ExamPredictorModalProps> = ({ isOpen, onClose, subject, examLevel = 'VWO' }) => {
     const [selectedDomain, setSelectedDomain] = useState<ExamDomain | null>(null);
     const [predictedQuestions, setPredictedQuestions] = useState<PredictedQuestion[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [expandedQuestion, setExpandedQuestion] = useState<number | null>(null);
     const [generatedDomains, setGeneratedDomains] = useState<string[]>([]);
 
-    const ceDomains = getCEDomains(subject, examLevel);
+    // Interactive answering state
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [answers, setAnswers] = useState<AnswerResult[]>([]);
+    const [currentInput, setCurrentInput] = useState('');
+    const [showResults, setShowResults] = useState(false);
+    const [selfScores, setSelfScores] = useState<(boolean | null)[]>([]);
 
+    const ceDomains = getCEDomains(subject, examLevel);
     const domainColors = ['#22d3ee', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb923c', '#60a5fa', '#e879f9'];
     const difficultyColors: Record<string, string> = {
         'makkelijk': '#34d399',
@@ -41,11 +51,15 @@ const ExamPredictorModal: React.FC<ExamPredictorModalProps> = ({ isOpen, onClose
     const generatePredictions = async (domain: ExamDomain) => {
         setSelectedDomain(domain);
         setIsGenerating(true);
-        setExpandedQuestion(null);
+        setCurrentQuestionIndex(0);
+        setAnswers([]);
+        setCurrentInput('');
+        setShowResults(false);
+        setSelfScores([]);
 
         const subdomainsText = domain.subdomains?.map(s => `  - ${s.code}: ${s.title}`).join('\n') || '';
 
-        const prompt = `Je bent een ervaren ${examLevel} examinator voor ${subject}. Genereer 5 realistische examenvragen in de stijl van het Centraal Examen.
+        const prompt = `Je bent een ervaren ${examLevel} examinator voor ${subject}. Genereer 10 realistische examenvragen in de stijl van het Centraal Examen.
 
 === DOMEIN ===
 ${domain.code}: ${domain.title}
@@ -69,7 +83,7 @@ Genereer vragen die EXACT lijken op echte CE-vragen voor ${subject} ${examLevel}
    - Geef bij open vragen aan hoeveel punten de vraag waard is (bijv. "2p")
 
 3. **Mix van vraagtypen**: open vragen, meerkeuzevragen, citaatvragen, berekenopgaven
-4. **Moeilijkheidsgraad**: 1 makkelijk, 2 gemiddeld, 2 moeilijk
+4. **Maak 10 vragen**: 3 makkelijk, 4 gemiddeld, 3 moeilijk
 5. **Geef bij elke vraag**:
    - source_text: de brontekst/context (VERPLICHT, minimaal 3-4 zinnen)
    - question: de examenvraag zelf
@@ -116,6 +130,8 @@ JSON output.`;
             const result = cleanAndParseJSON(response.text || '');
             if (result?.questions) {
                 setPredictedQuestions(result.questions);
+                setAnswers(result.questions.map(() => ({ studentAnswer: '', isRevealed: false })));
+                setSelfScores(result.questions.map(() => null));
                 if (!generatedDomains.includes(domain.code)) {
                     setGeneratedDomains(prev => [...prev, domain.code]);
                 }
@@ -127,20 +143,60 @@ JSON output.`;
         }
     };
 
-    // Reset on close
-    const handleClose = () => {
+    const handleSubmitAnswer = () => {
+        const newAnswers = [...answers];
+        newAnswers[currentQuestionIndex] = { studentAnswer: currentInput, isRevealed: true };
+        setAnswers(newAnswers);
+        setCurrentInput('');
+    };
+
+    const handleSelfScore = (correct: boolean) => {
+        const newScores = [...selfScores];
+        newScores[currentQuestionIndex] = correct;
+        setSelfScores(newScores);
+    };
+
+    const handleNextQuestion = () => {
+        if (currentQuestionIndex < predictedQuestions.length - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
+        } else {
+            setShowResults(true);
+        }
+    };
+
+    const handlePrevQuestion = () => {
+        if (currentQuestionIndex > 0) {
+            setCurrentQuestionIndex(prev => prev - 1);
+        }
+    };
+
+    const handleRestart = () => {
         setSelectedDomain(null);
         setPredictedQuestions([]);
-        setExpandedQuestion(null);
+        setCurrentQuestionIndex(0);
+        setAnswers([]);
+        setCurrentInput('');
+        setShowResults(false);
+        setSelfScores([]);
+    };
+
+    const handleClose = () => {
+        handleRestart();
         onClose();
     };
+
+    const correctCount = selfScores.filter(s => s === true).length;
+    const answeredCount = selfScores.filter(s => s !== null).length;
+    const currentQ = predictedQuestions[currentQuestionIndex];
+    const currentAnswer = answers[currentQuestionIndex];
+    const currentScore = selfScores[currentQuestionIndex];
 
     if (!isOpen) return null;
 
     return (
         <div className="modal-overlay" onClick={handleClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()} style={{
-                maxWidth: '680px',
+                maxWidth: '780px',
                 width: '95%',
                 borderRadius: '20px',
                 padding: '0',
@@ -148,7 +204,7 @@ JSON output.`;
             }}>
                 {/* Header */}
                 <div style={{
-                    padding: '24px 28px 20px',
+                    padding: '20px 28px 16px',
                     background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12), rgba(34, 211, 238, 0.12))',
                     borderBottom: '1px solid rgba(168, 85, 247, 0.2)',
                 }}>
@@ -158,7 +214,10 @@ JSON output.`;
                                 🔮 AI Examenvoorspeller
                             </h2>
                             <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                                Voorspelde examenvragen voor <strong>{subject}</strong> op basis van het officiële examenprogramma
+                                {predictedQuestions.length > 0 && !showResults
+                                    ? `Vraag ${currentQuestionIndex + 1} van ${predictedQuestions.length} — ${selectedDomain?.title}`
+                                    : `Voorspelde examenvragen voor ${subject}`
+                                }
                             </p>
                         </div>
                         <button onClick={handleClose} style={{
@@ -171,72 +230,101 @@ JSON output.`;
                             padding: '6px 10px',
                         }}>✕</button>
                     </div>
+
+                    {/* Progress dots */}
+                    {predictedQuestions.length > 0 && !showResults && (
+                        <div style={{ display: 'flex', gap: '4px', marginTop: '12px' }}>
+                            {predictedQuestions.map((_, i) => (
+                                <div
+                                    key={i}
+                                    onClick={() => { if (answers[i]?.isRevealed || i <= currentQuestionIndex) setCurrentQuestionIndex(i); }}
+                                    style={{
+                                        flex: 1,
+                                        height: '4px',
+                                        borderRadius: '2px',
+                                        cursor: (answers[i]?.isRevealed || i <= currentQuestionIndex) ? 'pointer' : 'default',
+                                        background: i === currentQuestionIndex
+                                            ? 'linear-gradient(90deg, #22d3ee, #a78bfa)'
+                                            : selfScores[i] === true
+                                                ? '#34d399'
+                                                : selfScores[i] === false
+                                                    ? '#f87171'
+                                                    : answers[i]?.isRevealed
+                                                        ? 'rgba(255,255,255,0.3)'
+                                                        : 'rgba(255,255,255,0.08)',
+                                        transition: 'all 0.3s ease',
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Content */}
-                <div style={{ padding: '20px 28px 28px', maxHeight: '70vh', overflowY: 'auto' }}>
-                    {/* Domain selector */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <h4 style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                            KIES EEN DOMEIN
-                        </h4>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                            {ceDomains.map((domain, i) => {
-                                const isSelected = selectedDomain?.code === domain.code;
-                                const isGenerated = generatedDomains.includes(domain.code);
-                                return (
-                                    <button
-                                        key={domain.code}
-                                        onClick={() => generatePredictions(domain)}
-                                        disabled={isGenerating}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                            padding: '10px 16px',
-                                            borderRadius: '10px',
-                                            border: isSelected
-                                                ? `2px solid ${domainColors[i % domainColors.length]}`
-                                                : '1px solid rgba(255,255,255,0.1)',
-                                            background: isSelected
-                                                ? `rgba(${i % 2 === 0 ? '34, 211, 238' : '168, 85, 247'}, 0.15)`
-                                                : 'rgba(255,255,255,0.03)',
-                                            color: 'var(--text-main)',
-                                            cursor: isGenerating ? 'wait' : 'pointer',
-                                            transition: 'all 0.2s ease',
-                                            fontSize: '0.85rem',
-                                            position: 'relative',
-                                        }}
-                                    >
-                                        <span style={{
-                                            color: domainColors[i % domainColors.length],
-                                            fontWeight: 800,
-                                            fontSize: '0.8rem',
-                                        }}>
-                                            {domain.code}
-                                        </span>
-                                        <span>{domain.title}</span>
-                                        {isGenerated && !isSelected && (
-                                            <span style={{ fontSize: '0.7rem' }}>✅</span>
-                                        )}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
+                <div style={{ padding: '20px 28px 28px', maxHeight: '72vh', overflowY: 'auto' }}>
 
-                    {/* Loading state */}
+                    {/* === DOMAIN SELECTOR === */}
+                    {predictedQuestions.length === 0 && !isGenerating && (
+                        <>
+                            <div style={{ marginBottom: '20px' }}>
+                                <h4 style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                                    KIES EEN DOMEIN
+                                </h4>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                    {ceDomains.map((domain, i) => {
+                                        const isGenerated = generatedDomains.includes(domain.code);
+                                        return (
+                                            <button
+                                                key={domain.code}
+                                                onClick={() => generatePredictions(domain)}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '8px',
+                                                    padding: '10px 16px',
+                                                    borderRadius: '10px',
+                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                    background: 'rgba(255,255,255,0.03)',
+                                                    color: 'var(--text-main)',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s ease',
+                                                    fontSize: '0.85rem',
+                                                }}
+                                            >
+                                                <span style={{
+                                                    color: domainColors[i % domainColors.length],
+                                                    fontWeight: 800,
+                                                    fontSize: '0.8rem',
+                                                }}>{domain.code}</span>
+                                                <span>{domain.title}</span>
+                                                {isGenerated && <span style={{ fontSize: '0.7rem' }}>✅</span>}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                                <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🔮</div>
+                                <p style={{ fontSize: '0.95rem', marginBottom: '6px' }}>Selecteer een domein hierboven</p>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--subtle-text)' }}>
+                                    Je krijgt 10 realistische CE-vragen die je zelf beantwoordt
+                                </p>
+                            </div>
+                        </>
+                    )}
+
+                    {/* === LOADING === */}
                     {isGenerating && (
                         <div style={{
                             textAlign: 'center',
-                            padding: '40px',
+                            padding: '50px 20px',
                             background: 'rgba(168, 85, 247, 0.05)',
                             borderRadius: '14px',
                             border: '1px solid rgba(168, 85, 247, 0.1)',
                         }}>
-                            <div className="spinner" style={{ width: '32px', height: '32px', margin: '0 auto 16px' }}></div>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                                🔮 AI analyseert examenprogramma en trends...
+                            <div className="spinner" style={{ width: '36px', height: '36px', margin: '0 auto 16px' }}></div>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: 600 }}>
+                                🔮 AI genereert 10 examenvragen...
                             </p>
                             <p style={{ color: 'var(--subtle-text)', fontSize: '0.8rem', marginTop: '4px' }}>
                                 Domein {selectedDomain?.code}: {selectedDomain?.title}
@@ -244,179 +332,335 @@ JSON output.`;
                         </div>
                     )}
 
-                    {/* Questions */}
-                    {!isGenerating && predictedQuestions.length > 0 && (
+                    {/* === INTERACTIVE QUESTION === */}
+                    {!isGenerating && predictedQuestions.length > 0 && !showResults && currentQ && (
                         <div>
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginBottom: '14px',
-                            }}>
-                                <h4 style={{ margin: 0, fontSize: '0.9rem' }}>
-                                    Voorspelde vragen — Domein {selectedDomain?.code}: {selectedDomain?.title}
-                                </h4>
-                                <span style={{
-                                    fontSize: '0.75rem',
-                                    color: 'var(--subtle-text)',
-                                    background: 'rgba(255,255,255,0.05)',
-                                    padding: '3px 10px',
-                                    borderRadius: '6px',
+                            {/* Source text */}
+                            {currentQ.source_text && (
+                                <div style={{
+                                    padding: '14px 16px',
+                                    marginBottom: '16px',
+                                    borderRadius: '10px',
+                                    background: 'rgba(255,255,255,0.03)',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    fontSize: '0.85rem',
+                                    lineHeight: 1.7,
+                                    color: 'var(--text-muted)',
                                 }}>
-                                    {predictedQuestions.length} vragen
-                                </span>
+                                    <div style={{
+                                        fontSize: '0.72rem',
+                                        fontWeight: 700,
+                                        color: 'var(--subtle-text)',
+                                        marginBottom: '8px',
+                                        letterSpacing: '0.5px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                    }}>
+                                        📄 BRONTEKST
+                                    </div>
+                                    <div style={{ fontStyle: 'italic' }}>{currentQ.source_text}</div>
+                                </div>
+                            )}
+
+                            {/* Question */}
+                            <div style={{
+                                padding: '16px',
+                                marginBottom: '16px',
+                                borderRadius: '10px',
+                                background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.06), rgba(168, 85, 247, 0.06))',
+                                border: '1px solid rgba(34, 211, 238, 0.15)',
+                            }}>
+                                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                                    <span style={{
+                                        fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px',
+                                        background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', fontWeight: 600,
+                                    }}>{currentQ.question_type}</span>
+                                    <span style={{
+                                        fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px',
+                                        background: `${difficultyColors[currentQ.difficulty] || '#fbbf24'}20`,
+                                        color: difficultyColors[currentQ.difficulty] || '#fbbf24', fontWeight: 600,
+                                    }}>{currentQ.difficulty}</span>
+                                    <span style={{
+                                        fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px',
+                                        background: 'rgba(34, 211, 238, 0.1)', color: '#22d3ee',
+                                    }}>{currentQ.domain_code}</span>
+                                </div>
+                                <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.5, fontWeight: 500 }}>
+                                    {currentQ.question}
+                                </p>
                             </div>
 
-                            {predictedQuestions.map((q, i) => (
-                                <div
-                                    key={i}
-                                    style={{
-                                        marginBottom: '10px',
-                                        borderRadius: '12px',
-                                        border: '1px solid rgba(255,255,255,0.08)',
-                                        overflow: 'hidden',
-                                        background: expandedQuestion === i
-                                            ? 'rgba(168, 85, 247, 0.04)'
-                                            : 'rgba(255,255,255,0.02)',
-                                        transition: 'all 0.2s ease',
-                                    }}
-                                >
-                                    {/* Question header */}
-                                    <div
-                                        onClick={() => setExpandedQuestion(expandedQuestion === i ? null : i)}
+                            {/* Answer input (if not revealed yet) */}
+                            {!currentAnswer?.isRevealed && (
+                                <div>
+                                    <textarea
+                                        value={currentInput}
+                                        onChange={e => setCurrentInput(e.target.value)}
+                                        placeholder="Typ hier je antwoord..."
                                         style={{
-                                            padding: '14px 16px',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'flex-start',
-                                            gap: '12px',
-                                        }}
-                                    >
-                                        <span style={{
-                                            background: 'linear-gradient(135deg, var(--cyan), var(--purple))',
-                                            color: '#0f0f1a',
-                                            fontWeight: 800,
-                                            fontSize: '0.7rem',
-                                            padding: '3px 8px',
-                                            borderRadius: '6px',
-                                            flexShrink: 0,
-                                            marginTop: '2px',
-                                        }}>
-                                            {i + 1}
-                                        </span>
-                                        <div style={{ flex: 1 }}>
-                                            {/* Source text / context */}
-                                            {q.source_text && (
-                                                <div style={{
-                                                    padding: '10px 12px',
-                                                    marginBottom: '10px',
-                                                    borderRadius: '8px',
-                                                    background: 'rgba(255,255,255,0.03)',
-                                                    border: '1px solid rgba(255,255,255,0.06)',
-                                                    fontSize: '0.82rem',
-                                                    lineHeight: 1.6,
-                                                    color: 'var(--text-muted)',
-                                                    fontStyle: 'italic',
-                                                }}>
-                                                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--subtle-text)', marginBottom: '6px', letterSpacing: '0.5px', fontStyle: 'normal' }}>
-                                                        📄 BRONTEKST
-                                                    </div>
-                                                    {q.source_text}
-                                                </div>
-                                            )}
-                                            <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.4 }}>{q.question}</p>
-                                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
-                                                {q.question_type && (
-                                                    <span style={{
-                                                        fontSize: '0.7rem',
-                                                        padding: '2px 8px',
-                                                        borderRadius: '4px',
-                                                        background: 'rgba(168, 85, 247, 0.1)',
-                                                        color: '#c084fc',
-                                                        fontWeight: 600,
-                                                    }}>
-                                                        {q.question_type}
-                                                    </span>
-                                                )}
-                                                <span style={{
-                                                    fontSize: '0.7rem',
-                                                    padding: '2px 8px',
-                                                    borderRadius: '4px',
-                                                    background: `${difficultyColors[q.difficulty] || '#fbbf24'}20`,
-                                                    color: difficultyColors[q.difficulty] || '#fbbf24',
-                                                    fontWeight: 600,
-                                                }}>
-                                                    {q.difficulty}
-                                                </span>
-                                                <span style={{
-                                                    fontSize: '0.7rem',
-                                                    padding: '2px 8px',
-                                                    borderRadius: '4px',
-                                                    background: 'rgba(34, 211, 238, 0.1)',
-                                                    color: '#22d3ee',
-                                                }}>
-                                                    {q.domain_code}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <span style={{
+                                            width: '100%',
+                                            minHeight: '100px',
+                                            padding: '14px',
+                                            borderRadius: '10px',
+                                            border: '1px solid rgba(255,255,255,0.12)',
+                                            background: 'rgba(255,255,255,0.04)',
+                                            color: 'var(--text-main)',
                                             fontSize: '0.9rem',
-                                            color: 'var(--subtle-text)',
-                                            transition: 'transform 0.2s ease',
-                                            transform: expandedQuestion === i ? 'rotate(180deg)' : 'rotate(0)',
+                                            resize: 'vertical',
+                                            fontFamily: 'inherit',
+                                            lineHeight: 1.5,
+                                            outline: 'none',
+                                            boxSizing: 'border-box',
+                                        }}
+                                        onFocus={e => e.target.style.borderColor = 'rgba(34, 211, 238, 0.4)'}
+                                        onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.12)'}
+                                    />
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                                        <button
+                                            onClick={handleSubmitAnswer}
+                                            disabled={!currentInput.trim()}
+                                            style={{
+                                                flex: 1,
+                                                padding: '12px',
+                                                borderRadius: '10px',
+                                                border: 'none',
+                                                background: currentInput.trim()
+                                                    ? 'linear-gradient(135deg, #22d3ee, #a78bfa)'
+                                                    : 'rgba(255,255,255,0.05)',
+                                                color: currentInput.trim() ? '#0f0f1a' : 'var(--subtle-text)',
+                                                fontWeight: 700,
+                                                cursor: currentInput.trim() ? 'pointer' : 'default',
+                                                fontSize: '0.9rem',
+                                                transition: 'all 0.2s',
+                                            }}
+                                        >
+                                            Controleer Antwoord
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setCurrentInput('(overgeslagen)');
+                                                setTimeout(handleSubmitAnswer, 50);
+                                            }}
+                                            style={{
+                                                padding: '12px 16px',
+                                                borderRadius: '10px',
+                                                border: '1px solid rgba(255,255,255,0.1)',
+                                                background: 'transparent',
+                                                color: 'var(--subtle-text)',
+                                                cursor: 'pointer',
+                                                fontSize: '0.85rem',
+                                            }}
+                                        >
+                                            Sla over
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Revealed answer */}
+                            {currentAnswer?.isRevealed && (
+                                <div>
+                                    {/* Student answer */}
+                                    {currentAnswer.studentAnswer && currentAnswer.studentAnswer !== '(overgeslagen)' && (
+                                        <div style={{
+                                            padding: '12px 14px',
+                                            marginBottom: '12px',
+                                            borderRadius: '8px',
+                                            background: 'rgba(255, 255, 255, 0.03)',
+                                            border: '1px solid rgba(255,255,255,0.08)',
                                         }}>
-                                            ▼
-                                        </span>
+                                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--subtle-text)', marginBottom: '6px', letterSpacing: '0.5px' }}>
+                                                JOUW ANTWOORD
+                                            </div>
+                                            <p style={{ margin: 0, fontSize: '0.88rem', lineHeight: 1.5 }}>{currentAnswer.studentAnswer}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Model answer */}
+                                    <div style={{
+                                        padding: '12px 14px',
+                                        marginBottom: '12px',
+                                        borderRadius: '8px',
+                                        background: 'rgba(34, 211, 238, 0.06)',
+                                        border: '1px solid rgba(34, 211, 238, 0.15)',
+                                    }}>
+                                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#22d3ee', marginBottom: '6px', letterSpacing: '0.5px' }}>
+                                            MODELANTWOORD
+                                        </div>
+                                        <p style={{ margin: 0, fontSize: '0.88rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{currentQ.answer}</p>
                                     </div>
 
-                                    {/* Expanded answer */}
-                                    {expandedQuestion === i && (
+                                    {/* Explanation */}
+                                    <div style={{
+                                        padding: '12px 14px',
+                                        marginBottom: '16px',
+                                        borderRadius: '8px',
+                                        background: 'rgba(168, 85, 247, 0.04)',
+                                        border: '1px solid rgba(168, 85, 247, 0.1)',
+                                    }}>
+                                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#a78bfa', marginBottom: '6px', letterSpacing: '0.5px' }}>
+                                            UITLEG & BEOORDELINGSCRITERIA
+                                        </div>
+                                        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{currentQ.explanation}</p>
+                                    </div>
+
+                                    {/* Self-scoring */}
+                                    {currentScore === null && (
                                         <div style={{
-                                            padding: '0 16px 16px',
-                                            borderTop: '1px solid rgba(255,255,255,0.06)',
+                                            display: 'flex',
+                                            gap: '10px',
+                                            padding: '14px',
+                                            borderRadius: '10px',
+                                            background: 'rgba(255,255,255,0.03)',
+                                            border: '1px dashed rgba(255,255,255,0.12)',
                                         }}>
-                                            <div style={{
-                                                margin: '14px 0 10px',
-                                                padding: '12px 14px',
-                                                borderRadius: '8px',
-                                                background: 'rgba(34, 211, 238, 0.06)',
-                                                border: '1px solid rgba(34, 211, 238, 0.12)',
+                                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', marginRight: '8px' }}>
+                                                Was je antwoord goed?
+                                            </span>
+                                            <button
+                                                onClick={() => handleSelfScore(true)}
+                                                style={{
+                                                    flex: 1, padding: '10px', borderRadius: '8px',
+                                                    border: '1px solid rgba(52, 211, 153, 0.3)',
+                                                    background: 'rgba(52, 211, 153, 0.1)',
+                                                    color: '#34d399', fontWeight: 700, cursor: 'pointer',
+                                                    fontSize: '0.9rem',
+                                                }}
+                                            >
+                                                ✅ Goed
+                                            </button>
+                                            <button
+                                                onClick={() => handleSelfScore(false)}
+                                                style={{
+                                                    flex: 1, padding: '10px', borderRadius: '8px',
+                                                    border: '1px solid rgba(248, 113, 113, 0.3)',
+                                                    background: 'rgba(248, 113, 113, 0.1)',
+                                                    color: '#f87171', fontWeight: 700, cursor: 'pointer',
+                                                    fontSize: '0.9rem',
+                                                }}
+                                            >
+                                                ❌ Fout
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Navigation */}
+                                    {currentScore !== null && (
+                                        <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                                            {currentQuestionIndex > 0 && (
+                                                <button onClick={handlePrevQuestion} style={{
+                                                    padding: '12px 20px', borderRadius: '10px',
+                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                    background: 'transparent', color: 'var(--text-muted)',
+                                                    cursor: 'pointer', fontSize: '0.85rem',
+                                                }}>← Vorige</button>
+                                            )}
+                                            <button onClick={handleNextQuestion} style={{
+                                                flex: 1, padding: '12px', borderRadius: '10px',
+                                                border: 'none',
+                                                background: 'linear-gradient(135deg, #22d3ee, #a78bfa)',
+                                                color: '#0f0f1a', fontWeight: 700, cursor: 'pointer',
+                                                fontSize: '0.9rem',
                                             }}>
-                                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#22d3ee', marginBottom: '6px', letterSpacing: '0.5px' }}>
-                                                    MODELANTWOORD
-                                                </div>
-                                                <p style={{ margin: 0, fontSize: '0.88rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{q.answer}</p>
-                                            </div>
-                                            <div style={{
-                                                padding: '12px 14px',
-                                                borderRadius: '8px',
-                                                background: 'rgba(168, 85, 247, 0.04)',
-                                                border: '1px solid rgba(168, 85, 247, 0.1)',
-                                            }}>
-                                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#a78bfa', marginBottom: '6px', letterSpacing: '0.5px' }}>
-                                                    UITLEG & BEOORDELINGSCRITERIA
-                                                </div>
-                                                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{q.explanation}</p>
-                                            </div>
+                                                {currentQuestionIndex < predictedQuestions.length - 1
+                                                    ? `Volgende Vraag (${currentQuestionIndex + 2}/${predictedQuestions.length})`
+                                                    : '📊 Bekijk Resultaten'}
+                                            </button>
                                         </div>
                                     )}
                                 </div>
-                            ))}
+                            )}
                         </div>
                     )}
 
-                    {/* Empty state */}
-                    {!isGenerating && predictedQuestions.length === 0 && (
-                        <div style={{
-                            textAlign: 'center',
-                            padding: '40px 20px',
-                            color: 'var(--text-muted)',
-                        }}>
-                            <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🔮</div>
-                            <p style={{ fontSize: '0.95rem', marginBottom: '6px' }}>Selecteer een domein hierboven</p>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--subtle-text)' }}>
-                                De AI analyseert het examenprogramma en genereert realistische examenvragen
-                            </p>
+                    {/* === RESULTS SCREEN === */}
+                    {showResults && (
+                        <div>
+                            {/* Score header */}
+                            <div style={{
+                                textAlign: 'center',
+                                padding: '30px 20px',
+                                marginBottom: '20px',
+                                borderRadius: '14px',
+                                background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.08), rgba(168, 85, 247, 0.08))',
+                                border: '1px solid rgba(34, 211, 238, 0.15)',
+                            }}>
+                                <div style={{ fontSize: '3rem', marginBottom: '8px' }}>
+                                    {correctCount >= predictedQuestions.length * 0.8 ? '🎉' : correctCount >= predictedQuestions.length * 0.6 ? '💪' : correctCount >= predictedQuestions.length * 0.4 ? '📚' : '🔥'}
+                                </div>
+                                <div style={{
+                                    fontSize: '2.5rem',
+                                    fontWeight: 800,
+                                    background: 'linear-gradient(135deg, #22d3ee, #a78bfa)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    marginBottom: '4px',
+                                }}>
+                                    {correctCount}/{answeredCount}
+                                </div>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
+                                    {correctCount >= predictedQuestions.length * 0.8
+                                        ? 'Uitstekend! Je bent goed voorbereid!'
+                                        : correctCount >= predictedQuestions.length * 0.6
+                                            ? 'Goed bezig! Nog een paar puntjes verbeteren.'
+                                            : correctCount >= predictedQuestions.length * 0.4
+                                                ? 'Prima start, maar meer oefening is nodig.'
+                                                : 'Geen zorgen — elk fout antwoord is een leerkans!'}
+                                </p>
+                            </div>
+
+                            {/* Question review list */}
+                            <h4 style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+                                OVERZICHT VRAGEN
+                            </h4>
+                            {predictedQuestions.map((q, i) => (
+                                <div key={i} style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    padding: '10px 14px',
+                                    marginBottom: '6px',
+                                    borderRadius: '8px',
+                                    background: 'rgba(255,255,255,0.02)',
+                                    border: '1px solid rgba(255,255,255,0.06)',
+                                    cursor: 'pointer',
+                                }}
+                                    onClick={() => { setShowResults(false); setCurrentQuestionIndex(i); }}
+                                >
+                                    <span style={{
+                                        fontSize: '1.1rem',
+                                        flexShrink: 0,
+                                    }}>
+                                        {selfScores[i] === true ? '✅' : selfScores[i] === false ? '❌' : '⚪'}
+                                    </span>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <p style={{
+                                            margin: 0, fontSize: '0.85rem', lineHeight: 1.3,
+                                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        }}>{q.question}</p>
+                                    </div>
+                                    <span style={{
+                                        fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px',
+                                        background: `${difficultyColors[q.difficulty] || '#fbbf24'}20`,
+                                        color: difficultyColors[q.difficulty] || '#fbbf24',
+                                        fontWeight: 600, flexShrink: 0,
+                                    }}>{q.difficulty}</span>
+                                </div>
+                            ))}
+
+                            {/* Actions */}
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                                <button onClick={handleRestart} style={{
+                                    flex: 1, padding: '12px', borderRadius: '10px',
+                                    border: 'none',
+                                    background: 'linear-gradient(135deg, #22d3ee, #a78bfa)',
+                                    color: '#0f0f1a', fontWeight: 700, cursor: 'pointer',
+                                    fontSize: '0.9rem',
+                                }}>
+                                    Kies Ander Domein
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

@@ -168,7 +168,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         TAAK: Maak een JSON object met een "cards" array. Elke kaart heeft een "question" en "answer". Genereer 5-7 relevante kaarten. De "question" moet een kernbegrip dat relevant is voor het VWO eindexamen. Het "answer" moet de definitie of uitleg zijn zoals een leerling die moet kennen voor het examen. Zorg voor duidelijke, beknopte vragen en antwoorden.`;
         try {
             const response = await generateContentWithRetry({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-2.5-flash',
                 contents: prompt,
                 config: {
                     responseMimeType: 'application/json',
@@ -215,6 +215,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 onGenerateAnalysis={onGenerateProgressAnalysis}
                 allBadges={allBadges}
                 earnedBadges={earnedBadges}
+                studyStreak={studyStreak}
+                level={level}
             />;
         }
         if (activeTab === 'squad') {
