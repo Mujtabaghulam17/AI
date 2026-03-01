@@ -181,9 +181,11 @@ const App = () => {
     const [isSendingMessage, setIsSendingMessage] = useState(false);
     const chatSession = useRef<Chat | null>(null);
 
-    const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>(() => getInitialState('subscriptionTier', 'free'));
+    // Subscription state: always starts as 'free', Firestore is the source of truth.
+    // Do NOT cache in localStorage — this caused the 'reset to free' bug.
+    const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
     const isPremium = isPaidTier(subscriptionTier);
-    const [primarySubject, setPrimarySubject] = useState<string>(() => getInitialState('primarySubject', ''));
+    const [primarySubject, setPrimarySubject] = useState<string>('');
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const [upgradeModalReason, setUpgradeModalReason] = useState<string>('');
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -510,8 +512,8 @@ const App = () => {
     useEffect(() => { localStorage.setItem('subjectData', JSON.stringify(subjectData)); }, [subjectData]);
     useEffect(() => { localStorage.setItem('level', JSON.stringify(level)); }, [level]);
     useEffect(() => { localStorage.setItem('xp', JSON.stringify(xp)); }, [xp]);
-    useEffect(() => { localStorage.setItem('isPremium', JSON.stringify(isPremium)); localStorage.setItem('subscriptionTier', JSON.stringify(subscriptionTier)); }, [subscriptionTier]);
-    useEffect(() => { localStorage.setItem('primarySubject', JSON.stringify(primarySubject)); }, [primarySubject]);
+    // NOTE: subscriptionTier, isPremium, primarySubject are NOT persisted to localStorage.
+    // Firestore is the sole source of truth for subscription state.
     useEffect(() => { localStorage.setItem('chatUsage', JSON.stringify(chatUsage)); }, [chatUsage]);
     useEffect(() => { localStorage.setItem('dailyAnswers', JSON.stringify(dailyAnswers)); }, [dailyAnswers]);
     useEffect(() => { localStorage.setItem('earnedBadges', JSON.stringify(earnedBadges)); }, [earnedBadges]);
