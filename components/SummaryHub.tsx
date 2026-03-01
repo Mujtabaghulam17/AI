@@ -4,7 +4,7 @@ import { Type } from "@google/genai";
 import type { FlashcardDeck } from '../data/data.ts';
 
 // Use the same model name as defined in App.tsx
-const MODEL_NAME = 'gemini-2.0-flash';
+const MODEL_NAME = 'gemini-2.5-flash';
 
 interface SummaryHubProps {
     currentSubject: string;

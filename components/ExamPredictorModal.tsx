@@ -3,7 +3,7 @@ import { getCEDomains, getExamProgramSummary, type ExamDomain } from '../data/ex
 import { generateContentWithRetry, cleanAndParseJSON } from '../api/gemini.ts';
 import { Type } from "@google/genai";
 
-const MODEL_NAME = 'gemini-2.5-flash-preview-05-20';
+const MODEL_NAME = 'gemini-2.5-flash';
 
 interface ExamPredictorModalProps {
     isOpen: boolean;
@@ -14,10 +14,12 @@ interface ExamPredictorModalProps {
 
 interface PredictedQuestion {
     question: string;
+    source_text: string; // Context/passage/source that accompanies the question
     answer: string;
     explanation: string;
     difficulty: 'makkelijk' | 'gemiddeld' | 'moeilijk';
     domain_code: string;
+    question_type: string; // e.g. 'open vraag', 'meerkeuze', 'citaatvraag', etc.
 }
 
 const ExamPredictorModal: React.FC<ExamPredictorModalProps> = ({ isOpen, onClose, subject, examLevel = 'VWO' }) => {
@@ -43,24 +45,41 @@ const ExamPredictorModal: React.FC<ExamPredictorModalProps> = ({ isOpen, onClose
 
         const subdomainsText = domain.subdomains?.map(s => `  - ${s.code}: ${s.title}`).join('\n') || '';
 
-        const prompt = `Je bent een ervaren ${examLevel} examinator voor ${subject}. Op basis van het officiële examenprogramma en trends uit eerdere Centraal Examens, voorspel 5 realistische examenvragen voor dit specifieke domein.
+        const prompt = `Je bent een ervaren ${examLevel} examinator voor ${subject}. Genereer 5 realistische examenvragen in de stijl van het Centraal Examen.
 
 === DOMEIN ===
 ${domain.code}: ${domain.title}
 ${subdomainsText ? `Subdomeinen:\n${subdomainsText}` : ''}
 
 === INSTRUCTIES ===
-- Genereer 5 vragen die REALISTISCH zijn voor het Centraal Examen ${subject} ${examLevel}
-- Mix van moeilijkheidsgraden: 1 makkelijk, 2 gemiddeld, 2 moeilijk
-- Vragen moeten het hele domein dekken (verschillende subdomeinen)
-- Geef bij elke vraag:
-  1. De examenvraag zelf (formuleer als een echte CE-vraag)
-  2. Het correcte antwoord
-  3. Een korte uitleg waarom dit antwoord correct is
-  4. Het moeilijkheidsniveau
-  5. De domein-code (bijv. "${domain.code}" of een subdomein-code)
-- Gebruik contextrijke opgaven waar mogelijk (bronnen, grafieken beschrijven als context)
-- Let op: dit gaat om ${examLevel}-niveau!
+Genereer vragen die EXACT lijken op echte CE-vragen voor ${subject} ${examLevel}. Dit betekent:
+
+1. **Brontekst/context is verplicht**: Elke vraag MOET een brontekst bevatten. Dit kan zijn:
+   - Een tekstfragment (artikel, essay, gedicht, bron) waar vragen over gesteld worden
+   - Een beschrijving van een grafiek, tabel of diagram
+   - Een historische bron, citaat of document
+   - Een wetenschappelijke tekst of casus
+   De brontekst moet realistisch en gedetailleerd zijn (minimaal 3-4 zinnen).
+
+2. **Vraagformulering**: Formuleer vragen precies zoals in het CE:
+   - "Leg uit waarom..." / "Verklaar met behulp van bron X..."
+   - "Welke van de volgende uitspraken is juist op basis van de tekst?"
+   - "Citeer de zin waaruit blijkt dat..."
+   - "Bereken..." / "Geef twee argumenten..."
+   - Geef bij open vragen aan hoeveel punten de vraag waard is (bijv. "2p")
+
+3. **Mix van vraagtypen**: open vragen, meerkeuzevragen, citaatvragen, berekenopgaven
+4. **Moeilijkheidsgraad**: 1 makkelijk, 2 gemiddeld, 2 moeilijk
+5. **Geef bij elke vraag**:
+   - source_text: de brontekst/context (VERPLICHT, minimaal 3-4 zinnen)
+   - question: de examenvraag zelf
+   - question_type: type vraag (bijv. "open vraag (2p)", "meerkeuze", "citaatvraag")
+   - answer: het correcte modelantwoord (volledig, zoals in het correctiemodel)
+   - explanation: uitleg waarom dit het juiste antwoord is en welke concepten/vaardigheden getoetst worden
+   - difficulty: makkelijk/gemiddeld/moeilijk
+   - domain_code: de domein-code
+
+Let op: dit is ${examLevel}-niveau! Zorg dat het niveau klopt.
 
 JSON output.`;
 
@@ -78,13 +97,15 @@ JSON output.`;
                                 items: {
                                     type: Type.OBJECT,
                                     properties: {
+                                        source_text: { type: Type.STRING },
                                         question: { type: Type.STRING },
+                                        question_type: { type: Type.STRING },
                                         answer: { type: Type.STRING },
                                         explanation: { type: Type.STRING },
                                         difficulty: { type: Type.STRING },
                                         domain_code: { type: Type.STRING },
                                     },
-                                    required: ["question", "answer", "explanation", "difficulty", "domain_code"]
+                                    required: ["source_text", "question", "question_type", "answer", "explanation", "difficulty", "domain_code"]
                                 }
                             }
                         },
@@ -284,8 +305,39 @@ JSON output.`;
                                             {i + 1}
                                         </span>
                                         <div style={{ flex: 1 }}>
+                                            {/* Source text / context */}
+                                            {q.source_text && (
+                                                <div style={{
+                                                    padding: '10px 12px',
+                                                    marginBottom: '10px',
+                                                    borderRadius: '8px',
+                                                    background: 'rgba(255,255,255,0.03)',
+                                                    border: '1px solid rgba(255,255,255,0.06)',
+                                                    fontSize: '0.82rem',
+                                                    lineHeight: 1.6,
+                                                    color: 'var(--text-muted)',
+                                                    fontStyle: 'italic',
+                                                }}>
+                                                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--subtle-text)', marginBottom: '6px', letterSpacing: '0.5px', fontStyle: 'normal' }}>
+                                                        📄 BRONTEKST
+                                                    </div>
+                                                    {q.source_text}
+                                                </div>
+                                            )}
                                             <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.4 }}>{q.question}</p>
-                                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                                                {q.question_type && (
+                                                    <span style={{
+                                                        fontSize: '0.7rem',
+                                                        padding: '2px 8px',
+                                                        borderRadius: '4px',
+                                                        background: 'rgba(168, 85, 247, 0.1)',
+                                                        color: '#c084fc',
+                                                        fontWeight: 600,
+                                                    }}>
+                                                        {q.question_type}
+                                                    </span>
+                                                )}
                                                 <span style={{
                                                     fontSize: '0.7rem',
                                                     padding: '2px 8px',
@@ -331,9 +383,9 @@ JSON output.`;
                                                 border: '1px solid rgba(34, 211, 238, 0.12)',
                                             }}>
                                                 <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#22d3ee', marginBottom: '6px', letterSpacing: '0.5px' }}>
-                                                    ANTWOORD
+                                                    MODELANTWOORD
                                                 </div>
-                                                <p style={{ margin: 0, fontSize: '0.88rem', lineHeight: 1.5 }}>{q.answer}</p>
+                                                <p style={{ margin: 0, fontSize: '0.88rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{q.answer}</p>
                                             </div>
                                             <div style={{
                                                 padding: '12px 14px',
@@ -342,9 +394,9 @@ JSON output.`;
                                                 border: '1px solid rgba(168, 85, 247, 0.1)',
                                             }}>
                                                 <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#a78bfa', marginBottom: '6px', letterSpacing: '0.5px' }}>
-                                                    UITLEG
+                                                    UITLEG & BEOORDELINGSCRITERIA
                                                 </div>
-                                                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{q.explanation}</p>
+                                                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{q.explanation}</p>
                                             </div>
                                         </div>
                                     )}

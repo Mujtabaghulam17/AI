@@ -63,7 +63,7 @@ import type { Question, MasteryScore, StudyPlan, Mistake, ChatMessage, PlannerTa
 
 const CHAT_MESSAGE_LIMIT_FREE = DAILY_CHAT_LIMIT_FREE;
 const DAILY_ANSWER_LIMIT_FREE = DAILY_AI_LIMIT_FREE;
-const MODEL_NAME = 'gemini-2.0-flash';
+const MODEL_NAME = 'gemini-2.5-flash';
 
 type Subject = 'Nederlands' | 'Engels' | 'Natuurkunde' | 'Biologie' | 'Economie' | 'Geschiedenis' | 'Scheikunde' | 'Bedrijfseconomie' | 'Wiskunde A' | 'Wiskunde B' | 'Frans' | 'Duits' | 'Wiskunde' | 'Nask 1' | 'Nask 2' | 'Aardrijkskunde' | 'Maatschappijkunde';
 type ExamLevel = 'VMBO' | 'HAVO' | 'VWO';
@@ -412,11 +412,20 @@ const App = () => {
                 setFirestoreUserId(userId);
 
                 try {
+                    console.log(`🔍 DEBUG: Loading data for userId: ${userId}`);
                     const { data, isNewUser } = await loadAndMergeUserData(
                         userId,
                         user.email,
                         user.name
                     );
+
+                    console.log(`🔍 DEBUG: Firestore returned:`, {
+                        hasData: !!data,
+                        isNewUser,
+                        subscriptionTier: data?.subscriptionTier,
+                        isPremium: data?.isPremium,
+                        level: data?.level,
+                    });
 
                     if (data && !isNewUser) {
                         // Load server data into state
@@ -428,14 +437,33 @@ const App = () => {
                             setSubjectData(prev => ({ ...prev, ...data.subjectData }));
                         }
                         if (data.globalPulseCheck) setGlobalPulseCheck(data.globalPulseCheck);
-                        if (data.subscriptionTier) {
-                            setSubscriptionTier(data.subscriptionTier);
-                        } else if (data.isPremium !== undefined) {
-                            // Legacy migration: convert boolean to tier
-                            setSubscriptionTier(data.isPremium ? 'focus' : 'free');
+
+                        // Determine subscription tier from Firestore
+                        // Priority: subscriptionTier (if paid) > isPremium (legacy) > default 'free'
+                        let resolvedTier: SubscriptionTier = 'free';
+
+                        if (data.subscriptionTier && data.subscriptionTier !== 'free') {
+                            // Explicit paid tier set
+                            resolvedTier = data.subscriptionTier;
+                            console.log(`🔍 DEBUG: Using subscriptionTier field: ${resolvedTier}`);
+                        } else if (data.isPremium === true || data.isPremium === 'true' as any) {
+                            // Legacy isPremium boolean override
+                            resolvedTier = 'focus';
+                            console.log(`🔍 DEBUG: Legacy isPremium=true → focus`);
+                        } else if (typeof data.isPremium === 'string' && ['focus', 'totaal'].includes(data.isPremium as string)) {
+                            // User accidentally put tier string in isPremium field
+                            resolvedTier = data.isPremium as SubscriptionTier;
+                            console.log(`🔍 DEBUG: isPremium contains tier string: ${resolvedTier}`);
+                        } else {
+                            console.log(`🔍 DEBUG: No paid subscription found, keeping 'free'`);
                         }
+
+                        setSubscriptionTier(resolvedTier);
+                        console.log(`✅ Subscription tier set to: ${resolvedTier}`);
                         if (data.primarySubject) setPrimarySubject(data.primarySubject);
                         console.log("📥 User data loaded from Firestore");
+                    } else {
+                        console.log(`🔍 DEBUG: Skipped loading - data: ${!!data}, isNewUser: ${isNewUser}`);
                     }
                 } catch (error) {
                     console.error("Failed to load user data:", error);
@@ -1206,6 +1234,7 @@ JSON output.`;
                         }}
                         onStartExam={() => setIsExamStartModalOpen(true)}
                         onOpenUploadModal={() => setIsUploadModalOpen(true)}
+                        onOpenOuderDashboard={() => setCurrentScreen('OUDER_DASHBOARD')}
                         progressHistory={currentData.progressHistory}
                         flashcardDecks={currentData.flashcardDecks}
                         onAddFlashcardDeck={() => {
@@ -1351,6 +1380,50 @@ JSON output.`;
                     }
                 }} isGenerating={isGeneratingAffirmation} />
                 <ExamPredictorModal isOpen={isExamPredictorOpen} onClose={() => setIsExamPredictorOpen(false)} subject={currentSubject} examLevel={examLevel} />
+                <UploadAnalysisModal
+                    isOpen={isUploadModalOpen}
+                    onClose={() => setIsUploadModalOpen(false)}
+                    onAnalyze={async (file: File) => {
+                        setIsAnalyzingUpload(true);
+                        try {
+                            const reader = new FileReader();
+                            const base64 = await new Promise<string>((resolve) => {
+                                reader.onload = () => resolve((reader.result as string).split(',')[1]);
+                                reader.readAsDataURL(file);
+                            });
+                            const mimeType = file.type as 'image/jpeg' | 'image/png' | 'image/webp';
+                            const response = await generateContentWithRetry({
+                                model: MODEL_NAME,
+                                contents: [
+                                    {
+                                        inlineData: { mimeType, data: base64 },
+                                    },
+                                    `Analyseer deze samenvatting van een ${examLevel}-leerling voor het vak ${currentSubject}. Geef:
+1. Een beoordeling van de kwaliteit (volledigheid, juistheid, structuur)
+2. Wat er goed is
+3. Wat er ontbreekt of verbeterd kan worden
+4. Concrete tips om de samenvatting te verbeteren
+5. Een eindscore van 1-10
+
+Wees constructief en bemoedigend maar eerlijk.`,
+                                ],
+                            });
+                            setIsUploadModalOpen(false);
+                            // Show analysis result in info modal
+                            setInfoModalData({
+                                title: '📊 Samenvatting Analyse',
+                                content: response.text || 'Analyse kon niet worden gegenereerd.',
+                            });
+                            setIsInfoModalOpen(true);
+                        } catch (err) {
+                            console.error('Upload analysis failed:', err);
+                            alert('Er ging iets mis bij de analyse. Probeer het opnieuw.');
+                        } finally {
+                            setIsAnalyzingUpload(false);
+                        }
+                    }}
+                    isAnalyzing={isAnalyzingUpload}
+                />
                 <PulseCheckModal isOpen={isPulseCheckModalOpen} onClose={() => handlePulseCheckSubmit(0, 'skipped')} onSubmit={handlePulseCheckSubmit} subject={currentSubject} userName={user?.name || 'Student'} />
                 <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
                 <ExamStartModal

@@ -37,6 +37,7 @@ export const debouncedSync = (userId: string, data: Partial<UserFirestoreData>, 
         }
 
         // Perform sync
+        console.log(`🔍 DEBUG debouncedSync: Writing keys to Firestore:`, Object.keys(pendingChanges));
         const success = await saveUserDataToFirestore(userId, pendingChanges);
 
         if (success) {
