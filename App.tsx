@@ -46,7 +46,7 @@ const OuderDashboard = lazy(() => import('./components/OuderDashboard.tsx'));
 import { getInitialState, repetitionSchedule } from './utils/helpers.ts';
 import { generateContentWithRetry, cleanAndParseJSON, ai } from './api/gemini.ts';
 import { decode, decodeAudioData } from './utils/audio.ts';
-import { debouncedSync, loadAndMergeUserData, getUserIdFromAuth, prepareDataForSync, forceSync } from './utils/userSync.ts';
+import { debouncedSync, loadAndMergeUserData, prepareDataForSync, forceSync } from './utils/userSync.ts';
 import { checkPendingPayment } from './api/stripe.ts';
 import { updateSubscriptionTier } from './api/firebase.ts';
 import { type SubscriptionTier, isPaidTier, isAiLimitReached, isChatLimitReached, canAccessSubject, canUseExamPredictor, DAILY_AI_LIMIT_FREE, DAILY_CHAT_LIMIT_FREE } from './utils/subscriptionTiers';
@@ -384,7 +384,7 @@ const App = () => {
     useEffect(() => {
         const loadUserData = async () => {
             if (isAuthenticated && user && !isLoadingUserData) {
-                const userId = getUserIdFromAuth(user as any);
+                const userId = firebaseUser?.uid;
                 if (!userId || userId === firestoreUserId) return;
 
                 setIsLoadingUserData(true);
@@ -464,7 +464,7 @@ const App = () => {
             setSubscriptionTier(result.plan);
 
             // Update Firestore with subscription tier
-            const userId = getUserIdFromAuth(user as any);
+            const userId = firebaseUser?.uid;
             if (userId) {
                 updateSubscriptionTier(userId, result.plan);
             }
@@ -475,7 +475,7 @@ const App = () => {
     // NOTE: subscriptionTier/isPremium/primarySubject are NOT synced here.
     // They are only updated via updateSubscriptionTier() to avoid race conditions.
     useEffect(() => {
-        const userId = getUserIdFromAuth(user as any);
+        const userId = firebaseUser?.uid;
         if (!userId || !isAuthenticated) return;
 
         const dataToSync = prepareDataForSync({
@@ -1342,7 +1342,7 @@ JSON output.`;
                     <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} selectedPlan={selectedPlan} onPaymentSuccess={(plan) => {
                         setSubscriptionTier(plan);
                         // Force sync subscription tier to Firestore immediately
-                        const userId = getUserIdFromAuth(user as any);
+                        const userId = firebaseUser?.uid;
                         if (userId) {
                             forceSync(userId, { isPremium: true, subscriptionTier: plan });
                         }

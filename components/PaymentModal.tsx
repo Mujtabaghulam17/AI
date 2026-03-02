@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { redirectToCheckout, isStripeConfigured } from '../api/stripe';
 import { useAuth0 } from '../auth/FirebaseAuthProvider';
-import { getUserIdFromAuth } from '../utils/userSync';
 import { getTierDisplayInfo } from '../utils/subscriptionTiers';
 
 interface PaymentModalProps {
@@ -14,7 +13,7 @@ interface PaymentModalProps {
 const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onPaymentSuccess, selectedPlan = 'focus' }) => {
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState('');
-    const { user } = useAuth0();
+    const { user, firebaseUser } = useAuth0();
     const stripeConfigured = isStripeConfigured();
     const planInfo = getTierDisplayInfo(selectedPlan);
 
@@ -46,7 +45,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onPaymentS
         }
 
         // Real Stripe checkout
-        const userId = getUserIdFromAuth(user as any);
+        const userId = firebaseUser?.uid;
 
         if (!userId) {
             setStatus('error');
