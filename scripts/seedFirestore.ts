@@ -7,12 +7,31 @@
  * Usage: npx tsx scripts/seedFirestore.ts
  */
 
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Load .env and .env.local (like Vite does)
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local'), override: true });
+
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
 
-// ─── Firebase config ─────────────────────────────────────────────
-
+// ─── Firebase config (from environment variables) ────────────────
+const firebaseConfig = {
+    apiKey: process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY,
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID,
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || process.env.FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.VITE_FIREBASE_APP_ID || process.env.FIREBASE_APP_ID,
+    measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID || process.env.FIREBASE_MEASUREMENT_ID,
 };
+
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+    console.error('❌ Missing Firebase config. Set VITE_FIREBASE_* or FIREBASE_* env vars (or add a .env file).');
+    process.exit(1);
+}
 
 // ─── Initialize ──────────────────────────────────────────────────
 const app = initializeApp(firebaseConfig);
