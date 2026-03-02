@@ -20,6 +20,8 @@ interface PredictedQuestion {
     difficulty: 'makkelijk' | 'gemiddeld' | 'moeilijk';
     domain_code: string;
     question_type: string;
+    options?: string[];
+    correct_option?: string;
 }
 
 type AnswerResult = {
@@ -37,6 +39,7 @@ const ExamPredictorModal: React.FC<ExamPredictorModalProps> = ({ isOpen, onClose
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<AnswerResult[]>([]);
     const [currentInput, setCurrentInput] = useState('');
+    const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [showResults, setShowResults] = useState(false);
     const [selfScores, setSelfScores] = useState<(boolean | null)[]>([]);
 
@@ -54,20 +57,24 @@ const ExamPredictorModal: React.FC<ExamPredictorModalProps> = ({ isOpen, onClose
         setCurrentQuestionIndex(0);
         setAnswers([]);
         setCurrentInput('');
+        setSelectedOption(null);
         setShowResults(false);
         setSelfScores([]);
 
         const subdomainsText = domain.subdomains?.map(s => `  - ${s.code}: ${s.title}`).join('\n') || '';
 
-        const prompt = `Genereer 10 ${examLevel} CE-examenvragen voor ${subject}, domein ${domain.code}: ${domain.title}.
+        const prompt = `Genereer 10 unieke ${examLevel} CE-examenvragen voor ${subject}, domein ${domain.code}: ${domain.title}.
 ${subdomainsText ? `Subdomeinen: ${subdomainsText}` : ''}
 
 Eisen:
-- Elke vraag heeft een source_text (brontekst/context, 2-3 zinnen), question, answer (volledig modelantwoord), explanation (kort), question_type (bijv. "open vraag (2p)", "meerkeuze", "citaatvraag"), difficulty, domain_code
+- ELKE vraag MOET een uitgebreide source_text hebben: dit is een brontekst/contextpassage van 3-5 zinnen waar de vraag over gaat. Dit is VERPLICHT voor ELKE vraag, nooit leeg laten! De brontekst moet realistisch en informatief zijn, zoals in een echt CE-examen.
+- Elke vraag heeft: source_text, question, answer (volledig modelantwoord), explanation (kort), question_type, difficulty, domain_code
+- Bij meerkeuze vragen (question_type = "meerkeuze"): geef ALTIJD een array "options" met exact 4 antwoordopties (A t/m D) en een "correct_option" die exact overeenkomt met één van de options
 - Mix: 3 makkelijk, 4 gemiddeld, 3 moeilijk
-- Vraagtypen: open vragen, meerkeuze, citaatvragen, berekenopgaven
+- Mix van vraagtypen: 3 meerkeuze (met options!), 3 open vragen, 2 uitlegvragen, 1 citaatvraag, 1 berekenopgave/redeneervraag
 - Formuleer zoals echt CE: "Leg uit waarom...", "Welke uitspraak is juist?", "Bereken...", "Citeer de zin..."
-- ${examLevel}-niveau!`;
+- ${examLevel}-niveau!
+- Genereer NIEUWE vragen, niet herhalen van eerder gegenereerde vragen.`;
 
         try {
             const response = await generateContentWithRetry({
@@ -90,6 +97,8 @@ Eisen:
                                         explanation: { type: Type.STRING },
                                         difficulty: { type: Type.STRING },
                                         domain_code: { type: Type.STRING },
+                                        options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                        correct_option: { type: Type.STRING },
                                     },
                                     required: ["source_text", "question", "question_type", "answer", "explanation", "difficulty", "domain_code"]
                                 }
@@ -118,10 +127,13 @@ Eisen:
     };
 
     const handleSubmitAnswer = () => {
+        const q = predictedQuestions[currentQuestionIndex];
+        const answerText = q.options ? (selectedOption || '') : currentInput;
         const newAnswers = [...answers];
-        newAnswers[currentQuestionIndex] = { studentAnswer: currentInput, isRevealed: true };
+        newAnswers[currentQuestionIndex] = { studentAnswer: answerText, isRevealed: true };
         setAnswers(newAnswers);
         setCurrentInput('');
+        setSelectedOption(null);
     };
 
     const handleSelfScore = (correct: boolean) => {
@@ -150,6 +162,7 @@ Eisen:
         setCurrentQuestionIndex(0);
         setAnswers([]);
         setCurrentInput('');
+        setSelectedOption(null);
         setShowResults(false);
         setSelfScores([]);
     };
@@ -368,43 +381,99 @@ Eisen:
                             {/* Answer input (if not revealed yet) */}
                             {!currentAnswer?.isRevealed && (
                                 <div>
-                                    <textarea
-                                        value={currentInput}
-                                        onChange={e => setCurrentInput(e.target.value)}
-                                        placeholder="Typ hier je antwoord..."
-                                        style={{
-                                            width: '100%',
-                                            minHeight: '100px',
-                                            padding: '14px',
-                                            borderRadius: '10px',
-                                            border: '1px solid rgba(255,255,255,0.12)',
-                                            background: 'rgba(255,255,255,0.04)',
-                                            color: 'var(--text-main)',
-                                            fontSize: '0.9rem',
-                                            resize: 'vertical',
-                                            fontFamily: 'inherit',
-                                            lineHeight: 1.5,
-                                            outline: 'none',
-                                            boxSizing: 'border-box',
-                                        }}
-                                        onFocus={e => e.target.style.borderColor = 'rgba(34, 211, 238, 0.4)'}
-                                        onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.12)'}
-                                    />
+                                    {/* Multiple choice options */}
+                                    {currentQ.options && currentQ.options.length > 0 ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+                                            {currentQ.options.map((option, i) => {
+                                                const isSelected = selectedOption === option;
+                                                return (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => setSelectedOption(option)}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '12px',
+                                                            padding: '12px 16px',
+                                                            borderRadius: '10px',
+                                                            border: isSelected
+                                                                ? '2px solid #22d3ee'
+                                                                : '1px solid rgba(255,255,255,0.1)',
+                                                            background: isSelected
+                                                                ? 'rgba(34, 211, 238, 0.08)'
+                                                                : 'rgba(255,255,255,0.03)',
+                                                            color: 'var(--text-main)',
+                                                            cursor: 'pointer',
+                                                            fontSize: '0.9rem',
+                                                            lineHeight: 1.4,
+                                                            textAlign: 'left',
+                                                            transition: 'all 0.2s ease',
+                                                        }}
+                                                    >
+                                                        <span style={{
+                                                            width: '24px',
+                                                            height: '24px',
+                                                            borderRadius: '50%',
+                                                            border: isSelected
+                                                                ? '2px solid #22d3ee'
+                                                                : '2px solid rgba(255,255,255,0.2)',
+                                                            background: isSelected
+                                                                ? 'linear-gradient(135deg, #22d3ee, #a78bfa)'
+                                                                : 'transparent',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            flexShrink: 0,
+                                                            fontSize: '0.7rem',
+                                                            fontWeight: 800,
+                                                            color: isSelected ? '#0f0f1a' : 'var(--text-muted)',
+                                                        }}>
+                                                            {String.fromCharCode(65 + i)}
+                                                        </span>
+                                                        <span>{option}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <textarea
+                                            value={currentInput}
+                                            onChange={e => setCurrentInput(e.target.value)}
+                                            placeholder="Typ hier je antwoord..."
+                                            style={{
+                                                width: '100%',
+                                                minHeight: '100px',
+                                                padding: '14px',
+                                                borderRadius: '10px',
+                                                border: '1px solid rgba(255,255,255,0.12)',
+                                                background: 'rgba(255,255,255,0.04)',
+                                                color: 'var(--text-main)',
+                                                fontSize: '0.9rem',
+                                                resize: 'vertical',
+                                                fontFamily: 'inherit',
+                                                lineHeight: 1.5,
+                                                outline: 'none',
+                                                boxSizing: 'border-box',
+                                            }}
+                                            onFocus={e => e.target.style.borderColor = 'rgba(34, 211, 238, 0.4)'}
+                                            onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.12)'}
+                                        />
+                                    )}
                                     <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
                                         <button
                                             onClick={handleSubmitAnswer}
-                                            disabled={!currentInput.trim()}
+                                            disabled={currentQ.options ? !selectedOption : !currentInput.trim()}
                                             style={{
                                                 flex: 1,
                                                 padding: '12px',
                                                 borderRadius: '10px',
                                                 border: 'none',
-                                                background: currentInput.trim()
+                                                background: (currentQ.options ? selectedOption : currentInput.trim())
                                                     ? 'linear-gradient(135deg, #22d3ee, #a78bfa)'
                                                     : 'rgba(255,255,255,0.05)',
-                                                color: currentInput.trim() ? '#0f0f1a' : 'var(--subtle-text)',
+                                                color: (currentQ.options ? selectedOption : currentInput.trim()) ? '#0f0f1a' : 'var(--subtle-text)',
                                                 fontWeight: 700,
-                                                cursor: currentInput.trim() ? 'pointer' : 'default',
+                                                cursor: (currentQ.options ? selectedOption : currentInput.trim()) ? 'pointer' : 'default',
                                                 fontSize: '0.9rem',
                                                 transition: 'all 0.2s',
                                             }}
@@ -413,7 +482,11 @@ Eisen:
                                         </button>
                                         <button
                                             onClick={() => {
-                                                setCurrentInput('(overgeslagen)');
+                                                if (currentQ.options) {
+                                                    setSelectedOption('(overgeslagen)');
+                                                } else {
+                                                    setCurrentInput('(overgeslagen)');
+                                                }
                                                 setTimeout(handleSubmitAnswer, 50);
                                             }}
                                             style={{
@@ -627,12 +700,21 @@ Eisen:
                             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                                 <button onClick={handleRestart} style={{
                                     flex: 1, padding: '12px', borderRadius: '10px',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    background: 'transparent',
+                                    color: 'var(--text-main)', fontWeight: 600, cursor: 'pointer',
+                                    fontSize: '0.85rem',
+                                }}>
+                                    Kies Ander Domein
+                                </button>
+                                <button onClick={() => { if (selectedDomain) generatePredictions(selectedDomain); }} style={{
+                                    flex: 1, padding: '12px', borderRadius: '10px',
                                     border: 'none',
                                     background: 'linear-gradient(135deg, #22d3ee, #a78bfa)',
                                     color: '#0f0f1a', fontWeight: 700, cursor: 'pointer',
                                     fontSize: '0.9rem',
                                 }}>
-                                    Kies Ander Domein
+                                    🔮 Genereer Meer Vragen
                                 </button>
                             </div>
                         </div>
