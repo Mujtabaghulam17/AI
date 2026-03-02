@@ -11,14 +11,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
 
 // ─── Firebase config ─────────────────────────────────────────────
-const firebaseConfig = {
-    apiKey: "AIzaSyCXfB1W6PKDaGPIG2NiApBE5Nf5EAOpRp0",
-    authDomain: "glowexamen.firebaseapp.com",
-    projectId: "glowexamen",
-    storageBucket: "glowexamen.firebasestorage.app",
-    messagingSenderId: "275509773660",
-    appId: "1:275509773660:web:cf9b3506f361e1e8136d99",
-    measurementId: "G-2FMG5VG1JQ"
+
 };
 
 // ─── Initialize ──────────────────────────────────────────────────
