@@ -87,6 +87,7 @@ const GlobalStyles = () => {
       padding: 24px;
       position: relative;
       z-index: 1;
+      overflow-x: hidden;
     }
 
     .app-wrapper.focus-mode {
@@ -804,30 +805,129 @@ const GlobalStyles = () => {
     @media (max-width: 900px) {
         .app-header {
             flex-direction: column;
-            gap: 12px;
-            padding-bottom: 16px;
+            gap: 8px;
+            padding: 10px 16px 12px;
         }
         .header-left, .header-center-nav, .header-right {
             width: 100%;
             justify-content: center;
         }
         .header-right {
-            gap: 24px;
+            gap: 16px;
+            flex-wrap: wrap;
         }
     }
 
     @media (max-width: 768px) {
         .app-wrapper { padding: 16px; }
         h1 { font-size: 2rem; }
+        h2 { font-size: 1.15rem; }
         .app-header {
             margin: -16px -16px 24px -16px;
+            overflow: hidden;
         }
         .header-center-nav {
             justify-content: flex-start;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
             padding-bottom: 4px;
         }
+        .header-center-nav::-webkit-scrollbar {
+            display: none;
+        }
+        .header-center-nav button {
+            flex-shrink: 0;
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+        .header-center-nav button .nav-icon { font-size: 18px; }
+        .header-center-nav button .nav-label { font-size: 10px; }
+        .header-right {
+            gap: 12px;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .header-right::-webkit-scrollbar {
+            display: none;
+        }
+        .card {
+            padding: 20px;
+            border-radius: 16px;
+        }
+        .modal-overlay {
+            padding: 10px;
+            align-items: flex-end;
+        }
+        .modal-content {
+            width: 100% !important;
+            max-width: 100% !important;
+            max-height: 92vh;
+            border-radius: 20px 20px 0 0;
+            margin: 0;
+        }
+        .header-xp-progress {
+            width: 100px;
+            min-width: 80px;
+        }
+        .button {
+            padding: 12px 20px;
+            font-size: 15px;
+            border-radius: 12px;
+        }
+        p { font-size: 0.95rem; }
+        .quest-item { padding: 12px; gap: 12px; }
+        .quest-icon { width: 40px; height: 40px; font-size: 20px; }
+        .flashcard-practice-container {
+            perspective: 800px;
+        }
+        .flashcard {
+            min-height: 200px;
+        }
+        .profile-dropdown {
+            position: fixed;
+            top: auto;
+            bottom: 0;
+            right: 0;
+            left: 0;
+            width: 100%;
+            border-radius: 20px 20px 0 0;
+            padding: 20px;
+        }
+        .subject-picker-dropdown {
+            position: fixed;
+            top: auto;
+            bottom: 0;
+            right: 0;
+            left: 0;
+            width: 100%;
+            border-radius: 20px 20px 0 0;
+            padding: 12px;
+        }
     }
-    
+
+    @media (max-width: 480px) {
+        .app-wrapper { padding: 12px; }
+        h1 { font-size: 1.6rem; }
+        h2 { font-size: 1.05rem; }
+        .app-header {
+            margin: -12px -12px 16px -12px;
+            padding: 10px 12px;
+        }
+        .card { padding: 16px; border-radius: 14px; }
+        .button { padding: 12px 16px; font-size: 14px; }
+        .header-center-nav button {
+            padding: 4px 10px;
+            font-size: 11px;
+        }
+        .header-center-nav button .nav-icon { font-size: 16px; }
+        .header-center-nav button .nav-label { font-size: 10px; }
+        .modal-content { padding: 16px; }
+        .chat-message { max-width: 92%; font-size: 0.88rem; }
+        .breathing-circle { width: 90px; height: 90px; }
+    }
+
     /* Scrollbar */
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }

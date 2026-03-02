@@ -59,43 +59,15 @@ const ExamPredictorModal: React.FC<ExamPredictorModalProps> = ({ isOpen, onClose
 
         const subdomainsText = domain.subdomains?.map(s => `  - ${s.code}: ${s.title}`).join('\n') || '';
 
-        const prompt = `Je bent een ervaren ${examLevel} examinator voor ${subject}. Genereer 10 realistische examenvragen in de stijl van het Centraal Examen.
+        const prompt = `Genereer 10 ${examLevel} CE-examenvragen voor ${subject}, domein ${domain.code}: ${domain.title}.
+${subdomainsText ? `Subdomeinen: ${subdomainsText}` : ''}
 
-=== DOMEIN ===
-${domain.code}: ${domain.title}
-${subdomainsText ? `Subdomeinen:\n${subdomainsText}` : ''}
-
-=== INSTRUCTIES ===
-Genereer vragen die EXACT lijken op echte CE-vragen voor ${subject} ${examLevel}. Dit betekent:
-
-1. **Brontekst/context is verplicht**: Elke vraag MOET een brontekst bevatten. Dit kan zijn:
-   - Een tekstfragment (artikel, essay, gedicht, bron) waar vragen over gesteld worden
-   - Een beschrijving van een grafiek, tabel of diagram
-   - Een historische bron, citaat of document
-   - Een wetenschappelijke tekst of casus
-   De brontekst moet realistisch en gedetailleerd zijn (minimaal 3-4 zinnen).
-
-2. **Vraagformulering**: Formuleer vragen precies zoals in het CE:
-   - "Leg uit waarom..." / "Verklaar met behulp van bron X..."
-   - "Welke van de volgende uitspraken is juist op basis van de tekst?"
-   - "Citeer de zin waaruit blijkt dat..."
-   - "Bereken..." / "Geef twee argumenten..."
-   - Geef bij open vragen aan hoeveel punten de vraag waard is (bijv. "2p")
-
-3. **Mix van vraagtypen**: open vragen, meerkeuzevragen, citaatvragen, berekenopgaven
-4. **Maak 10 vragen**: 3 makkelijk, 4 gemiddeld, 3 moeilijk
-5. **Geef bij elke vraag**:
-   - source_text: de brontekst/context (VERPLICHT, minimaal 3-4 zinnen)
-   - question: de examenvraag zelf
-   - question_type: type vraag (bijv. "open vraag (2p)", "meerkeuze", "citaatvraag")
-   - answer: het correcte modelantwoord (volledig, zoals in het correctiemodel)
-   - explanation: uitleg waarom dit het juiste antwoord is en welke concepten/vaardigheden getoetst worden
-   - difficulty: makkelijk/gemiddeld/moeilijk
-   - domain_code: de domein-code
-
-Let op: dit is ${examLevel}-niveau! Zorg dat het niveau klopt.
-
-JSON output.`;
+Eisen:
+- Elke vraag heeft een source_text (brontekst/context, 2-3 zinnen), question, answer (volledig modelantwoord), explanation (kort), question_type (bijv. "open vraag (2p)", "meerkeuze", "citaatvraag"), difficulty, domain_code
+- Mix: 3 makkelijk, 4 gemiddeld, 3 moeilijk
+- Vraagtypen: open vragen, meerkeuze, citaatvragen, berekenopgaven
+- Formuleer zoals echt CE: "Leg uit waarom...", "Welke uitspraak is juist?", "Bereken...", "Citeer de zin..."
+- ${examLevel}-niveau!`;
 
         try {
             const response = await generateContentWithRetry({
@@ -124,7 +96,9 @@ JSON output.`;
                             }
                         },
                         required: ["questions"]
-                    }
+                    },
+                    temperature: 1,
+                    thinkingConfig: { thinkingBudget: 0 },
                 }
             });
             const result = cleanAndParseJSON(response.text || '');

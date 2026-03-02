@@ -172,6 +172,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 contents: prompt,
                 config: {
                     responseMimeType: 'application/json',
+                    thinkingConfig: { thinkingBudget: 0 },
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
@@ -354,6 +355,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     };
 
 
+
     return (
         <div className="dashboard-container">
             <header className="app-header">
@@ -490,6 +492,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             <div className="dashboard-content-area">
                 {renderContent()}
             </div>
+
+
         </div>
     );
 };

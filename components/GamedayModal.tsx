@@ -47,7 +47,7 @@ const GamedayModal: React.FC<GamedayModalProps> = ({ isOpen, onClose, userName, 
               "final_tip": "Een laatste, scherpe, mentale tip om mee de examenzaal in te nemen. (max 2 zinnen)"
             }`;
             try {
-                const response = await ai.models.generateContent({ model: MODEL_NAME, contents: prompt, config: { responseMimeType: 'application/json' } });
+                const response = await ai.models.generateContent({ model: MODEL_NAME, contents: prompt, config: { responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } } });
                 setContent(JSON.parse(response.text || '{}'));
                 setStep('affirmation');
             } catch (e) {

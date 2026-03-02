@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
 import { GoogleGenAI, Chat, Modality, Type } from "@google/genai";
 import Welcome from './components/Welcome.tsx';
 import Dashboard from './components/Dashboard.tsx';
@@ -6,40 +6,43 @@ import QuestionCard from './components/QuestionCard.tsx';
 import LoadingCard from './components/LoadingCard.tsx';
 import FeedbackCard from './components/FeedbackCard.tsx';
 import RepetitionCard from './components/RepetitionCard.tsx';
-import ChatModal from './components/ChatModal.tsx';
-import UpgradeModal from './components/UpgradeModal.tsx';
-import PaymentModal from './components/PaymentModal.tsx';
-import ZenZoneModal from './components/ZenZoneModal.tsx';
-import MindfulMoment from './components/MindfulMoment.tsx';
-import ConceptExplanationModal from './components/ConceptExplanationModal.tsx';
-import WeekReviewModal from './components/WeekReviewModal.tsx';
-import AnalysisModal from './components/MistakeAnalysisModal.tsx';
-import ThinkingProcessModal from './components/ThinkingProcessModal.tsx';
-import MasterySessionModal from './components/MasterySessionModal.tsx';
-import SessionProposalModal from './components/SessionProposalModal.tsx';
-import InfoModal from './components/InfoModal.tsx';
-import WeakSpotBoosterModal from './components/WeakSpotBoosterModal.tsx';
-import ExamStartModal from './components/ExamStartModal.tsx';
-import ExamSimulation from './components/ExamSimulation.tsx';
-import ExamResults from './components/ExamResults.tsx';
-import UploadAnalysisModal from './components/UploadAnalysisModal.tsx';
-import AuthModal from './components/AuthModal.tsx';
-import PulseCheckModal from './components/PulseCheckModal.tsx';
-import OralPracticeModal from './components/OralPracticeModal.tsx';
-import TutorInterventionModal from './components/TutorInterventionModal.tsx';
-import SessionSummaryModal from './components/SessionSummaryModal.tsx';
-import BurnoutGuardModal from './components/BurnoutGuardModal.tsx';
-import GamedayModal from './components/GamedayModal.tsx';
-import AdminStatsModal from './components/AdminStatsModal.tsx';
-import FeatureFeedbackModal from './components/FeatureFeedbackModal.tsx';
-import ExamPredictorModal from './components/ExamPredictorModal.tsx';
 import SessionHeader from './components/SessionHeader.tsx';
-import OnboardingModal from './components/OnboardingModal.tsx';
-import TermsPage from './components/TermsPage.tsx';
-import PrivacyPage from './components/PrivacyPage.tsx';
-import PricingPage from './components/PricingPage.tsx';
-import OuderDashboard from './components/OuderDashboard.tsx';
 import GlobalStyles from './styles/GlobalStyles.tsx';
+
+// Lazy-loaded modals — only downloaded when first opened
+const ChatModal = lazy(() => import('./components/ChatModal.tsx'));
+const UpgradeModal = lazy(() => import('./components/UpgradeModal.tsx'));
+const PaymentModal = lazy(() => import('./components/PaymentModal.tsx'));
+const ZenZoneModal = lazy(() => import('./components/ZenZoneModal.tsx'));
+const MindfulMoment = lazy(() => import('./components/MindfulMoment.tsx'));
+const ConceptExplanationModal = lazy(() => import('./components/ConceptExplanationModal.tsx'));
+const WeekReviewModal = lazy(() => import('./components/WeekReviewModal.tsx'));
+const AnalysisModal = lazy(() => import('./components/MistakeAnalysisModal.tsx'));
+const ThinkingProcessModal = lazy(() => import('./components/ThinkingProcessModal.tsx'));
+const MasterySessionModal = lazy(() => import('./components/MasterySessionModal.tsx'));
+const SessionProposalModal = lazy(() => import('./components/SessionProposalModal.tsx'));
+const InfoModal = lazy(() => import('./components/InfoModal.tsx'));
+const WeakSpotBoosterModal = lazy(() => import('./components/WeakSpotBoosterModal.tsx'));
+const ExamStartModal = lazy(() => import('./components/ExamStartModal.tsx'));
+const ExamSimulation = lazy(() => import('./components/ExamSimulation.tsx'));
+const ExamResults = lazy(() => import('./components/ExamResults.tsx'));
+const UploadAnalysisModal = lazy(() => import('./components/UploadAnalysisModal.tsx'));
+const AuthModal = lazy(() => import('./components/AuthModal.tsx'));
+const PulseCheckModal = lazy(() => import('./components/PulseCheckModal.tsx'));
+const OralPracticeModal = lazy(() => import('./components/OralPracticeModal.tsx'));
+const TutorInterventionModal = lazy(() => import('./components/TutorInterventionModal.tsx'));
+const SessionSummaryModal = lazy(() => import('./components/SessionSummaryModal.tsx'));
+const BurnoutGuardModal = lazy(() => import('./components/BurnoutGuardModal.tsx'));
+const GamedayModal = lazy(() => import('./components/GamedayModal.tsx'));
+const AdminStatsModal = lazy(() => import('./components/AdminStatsModal.tsx'));
+const FeatureFeedbackModal = lazy(() => import('./components/FeatureFeedbackModal.tsx'));
+const ExamPredictorModal = lazy(() => import('./components/ExamPredictorModal.tsx'));
+const OnboardingModal = lazy(() => import('./components/OnboardingModal.tsx'));
+const TermsPage = lazy(() => import('./components/TermsPage.tsx'));
+const PrivacyPage = lazy(() => import('./components/PrivacyPage.tsx'));
+const PricingPage = lazy(() => import('./components/PricingPage.tsx'));
+const OuderDashboard = lazy(() => import('./components/OuderDashboard.tsx'));
+
 import { getInitialState, repetitionSchedule } from './utils/helpers.ts';
 import { generateContentWithRetry, cleanAndParseJSON, ai } from './api/gemini.ts';
 import { decode, decodeAudioData } from './utils/audio.ts';
@@ -47,14 +50,8 @@ import { debouncedSync, loadAndMergeUserData, getUserIdFromAuth, prepareDataForS
 import { checkPendingPayment } from './api/stripe.ts';
 import { updateSubscriptionTier } from './api/firebase.ts';
 import { type SubscriptionTier, isPaidTier, isAiLimitReached, isChatLimitReached, canAccessSubject, canUseExamPredictor, DAILY_AI_LIMIT_FREE, DAILY_CHAT_LIMIT_FREE } from './utils/subscriptionTiers';
-import {
-    dutchExamQuestions, englishExamQuestions, natuurkundeExamQuestions, biologieExamQuestions, economieExamQuestions,
-    geschiedenisExamQuestions, scheikundeExamQuestions, bedrijfseconomieExamQuestions, wiskundeAExamQuestions, wiskundeBExamQuestions,
-    fransExamQuestions, duitsExamQuestions,
-    FREE_QUESTION_IDS_NL, FREE_QUESTION_IDS_EN, FREE_QUESTION_IDS_NK, FREE_QUESTION_IDS_BIO, FREE_QUESTION_IDS_ECO,
-    FREE_QUESTION_IDS_GS, FREE_QUESTION_IDS_SK, FREE_QUESTION_IDS_BECO, FREE_QUESTION_IDS_WISA, FREE_QUESTION_IDS_WISB,
-    FREE_QUESTION_IDS_FR, FREE_QUESTION_IDS_DE
-} from './data/data.ts';
+import { getQuestions } from './api/questionService.ts';
+import { getHardcodedQuestions, getFreeQuestionIds } from './data/questionHelper.ts';
 import { examInfo, getExamProgramSummary, getCEDomains } from './data/examInfo.ts';
 import { allBadges } from './data/badges.ts';
 import { mockSquadData } from './data/mockSquad.ts';
@@ -276,41 +273,23 @@ const App = () => {
     const xpForNextLevel = 100 * level;
     const currentData = subjectData[currentSubject] || initialSubjectData[currentSubject];
 
-    const questions = (() => {
-        switch (currentSubject) {
-            case 'Nederlands': return dutchExamQuestions;
-            case 'Engels': return englishExamQuestions;
-            case 'Natuurkunde': return natuurkundeExamQuestions;
-            case 'Biologie': return biologieExamQuestions;
-            case 'Economie': return economieExamQuestions;
-            case 'Geschiedenis': return geschiedenisExamQuestions;
-            case 'Scheikunde': return scheikundeExamQuestions;
-            case 'Bedrijfseconomie': return bedrijfseconomieExamQuestions;
-            case 'Wiskunde A': return wiskundeAExamQuestions;
-            case 'Wiskunde B': return wiskundeBExamQuestions;
-            case 'Frans': return fransExamQuestions;
-            case 'Duits': return duitsExamQuestions;
-            default: return [];
-        }
-    })();
+    // Questions: loaded from Firestore with hardcoded instant fallback
+    const [questions, setQuestions] = useState<Question[]>(() => getHardcodedQuestions(currentSubject));
+    const freeQuestionIds = getFreeQuestionIds(currentSubject);
 
-    const freeQuestionIds = (() => {
-        switch (currentSubject) {
-            case 'Nederlands': return FREE_QUESTION_IDS_NL;
-            case 'Engels': return FREE_QUESTION_IDS_EN;
-            case 'Natuurkunde': return FREE_QUESTION_IDS_NK;
-            case 'Biologie': return FREE_QUESTION_IDS_BIO;
-            case 'Economie': return FREE_QUESTION_IDS_ECO;
-            case 'Geschiedenis': return FREE_QUESTION_IDS_GS;
-            case 'Scheikunde': return FREE_QUESTION_IDS_SK;
-            case 'Bedrijfseconomie': return FREE_QUESTION_IDS_BECO;
-            case 'Wiskunde A': return FREE_QUESTION_IDS_WISA;
-            case 'Wiskunde B': return FREE_QUESTION_IDS_WISB;
-            case 'Frans': return FREE_QUESTION_IDS_FR;
-            case 'Duits': return FREE_QUESTION_IDS_DE;
-            default: return [];
-        }
-    })();
+    // Load questions from Firestore (async, upgrades the hardcoded set)
+    useEffect(() => {
+        // Set hardcoded as instant fallback
+        setQuestions(getHardcodedQuestions(currentSubject));
+        // Then try Firestore for a potentially larger set
+        let cancelled = false;
+        getQuestions(currentSubject, examLevel.toLowerCase()).then(firestoreQuestions => {
+            if (!cancelled && firestoreQuestions.length > 0) {
+                setQuestions(firestoreQuestions);
+            }
+        });
+        return () => { cancelled = true; };
+    }, [currentSubject, examLevel]);
 
     // Handle Daily Quest Generation (and fixes incorrect placeholders)
     const handleGenerateDailyQuests = useCallback(() => {
@@ -1092,313 +1071,314 @@ JSON output.`;
     return (
         <>
             <GlobalStyles />
-            <div className={`app-wrapper ${currentScreen === 'QUESTION' || currentScreen === 'EXAM_SIMULATION' ? 'focus-mode' : ''}`}>
+            <Suspense fallback={null}>
+                <div className={`app-wrapper ${currentScreen === 'QUESTION' || currentScreen === 'EXAM_SIMULATION' ? 'focus-mode' : ''}`}>
 
-                {currentScreen === 'WELCOME' && (
-                    <Welcome
-                        onContinue={handleWelcomeContinue}
-                        onTerms={() => setCurrentScreen('TERMS')}
-                        onPrivacy={() => setCurrentScreen('PRIVACY')}
-                        onPricing={() => setCurrentScreen('PRICING')}
-                    />
-                )}
+                    {currentScreen === 'WELCOME' && (
+                        <Welcome
+                            onContinue={handleWelcomeContinue}
+                            onTerms={() => setCurrentScreen('TERMS')}
+                            onPrivacy={() => setCurrentScreen('PRIVACY')}
+                            onPricing={() => setCurrentScreen('PRICING')}
+                        />
+                    )}
 
-                {currentScreen === 'TERMS' && (
-                    <TermsPage onBack={() => setCurrentScreen('WELCOME')} />
-                )}
+                    {currentScreen === 'TERMS' && (
+                        <TermsPage onBack={() => setCurrentScreen('WELCOME')} />
+                    )}
 
-                {currentScreen === 'PRIVACY' && (
-                    <PrivacyPage onBack={() => setCurrentScreen('WELCOME')} />
-                )}
+                    {currentScreen === 'PRIVACY' && (
+                        <PrivacyPage onBack={() => setCurrentScreen('WELCOME')} />
+                    )}
 
-                {currentScreen === 'PRICING' && (
-                    <PricingPage
-                        onBack={() => setCurrentScreen(isAuthenticated ? 'DASHBOARD' : 'WELCOME')}
-                        onUpgrade={(plan) => {
-                            handleSelectPlan(plan);
-                            setCurrentScreen(isAuthenticated ? 'DASHBOARD' : 'WELCOME');
-                        }}
-                        isPremium={isPremium}
-                        currentTier={subscriptionTier}
-                    />
-                )}
-
-                {currentScreen === 'OUDER_DASHBOARD' && (
-                    <OuderDashboard
-                        onBack={() => setCurrentScreen('DASHBOARD')}
-                        studentName={user?.name || 'Leerling'}
-                        stats={{
-                            hoursThisWeek: Math.round((dailyAnswers.count || 0) * 0.1),
-                            averageScore: Object.values(currentData.masteryScores).length > 0
-                                ? Math.round(Object.values(currentData.masteryScores).reduce((sum, s) => sum + (s.total > 0 ? (s.correct / s.total) * 100 : 0), 0) / Math.max(1, Object.values(currentData.masteryScores).length))
-                                : 0,
-                            activeSubjects: [currentSubject],
-                            lastActive: new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }),
-                            totalQuestions: Object.values(currentData.masteryScores).reduce((sum, s) => sum + s.total, 0),
-                            streak: studyStreak,
-                        }}
-                    />
-                )}
-
-                {currentScreen === 'DASHBOARD' && (
-                    <Dashboard
-                        masteryScores={currentData.masteryScores}
-                        onStartSession={handleGenerateSessionProposal}
-                        isGeneratingSession={isGeneratingSession}
-                        onReset={handleResetProgress}
-                        studyStreak={studyStreak}
-                        level={level}
-                        xp={xp}
-                        xpForNextLevel={xpForNextLevel}
-                        examDate={currentData.examDate}
-                        setExamDate={(date) => setSubjectData(prev => ({ ...prev, [currentSubject]: { ...prev[currentSubject], examDate: date } }))}
-                        studyPlan={currentData.studyPlan}
-                        generatePlan={handleGenerateOrUpdatePlan}
-                        updatePlan={handleGenerateOrUpdatePlan}
-                        isGeneratingPlan={isGeneratingPlan}
-                        onToggleTask={(wi, ti) => {
-                            // Toggle task completion in study plan
-                            if (currentData.studyPlan) {
-                                const updatedPlan = { ...currentData.studyPlan };
-                                if (updatedPlan.weeks[wi] && updatedPlan.weeks[wi].tasks[ti]) {
-                                    updatedPlan.weeks[wi].tasks[ti].completed = !updatedPlan.weeks[wi].tasks[ti].completed;
-                                    if (updatedPlan.weeks[wi].tasks[ti].completed && !updatedPlan.weeks[wi].tasks[ti].xpAwarded) {
-                                        addXp(10);
-                                        updatedPlan.weeks[wi].tasks[ti].xpAwarded = true;
-                                    }
-                                    setSubjectData(prev => ({ ...prev, [currentSubject]: { ...prev[currentSubject], studyPlan: updatedPlan } }));
-                                }
-                            }
-                        }}
-                        onReviewWeek={(w) => {
-                            // Show week review in info modal
-                            setInfoModalData({ title: 'Weekoverzicht', content: `Week ${w.week_number}: ${w.theme}. ${w.tasks.filter(t => t.completed).length}/${w.tasks.length} taken voltooid.` });
-                            setIsInfoModalOpen(true);
-                        }}
-                        onShowInfo={handleShowInfo}
-                        onStartActionableTask={handlePlannerAction}
-                        repetitionQueue={repetitionQueue}
-                        onStartRepetition={() => {
-                            setCurrentScreen('REPETITION');
-                            updateQuestProgress('do_repetition');
-                        }}
-                        onOpenChat={() => { chatSession.current = ai.chats.create({ model: MODEL_NAME }); setIsChatOpen(true); }}
-                        onOpenChatForQuestionGeneration={() => {
-                            chatSession.current = ai.chats.create({ model: MODEL_NAME });
-                            setChatHistory([{ role: 'model', text: 'Hi! Ik help je graag met het genereren van oefenvragen. Over welk onderwerp binnen ' + currentSubject + ' wil je vragen genereren?' }]);
-                            setIsChatOpen(true);
-                        }}
-                        onOpenZenZone={() => {
-                            setIsZenZoneOpen(true);
-                            updateQuestProgress('use_zen_zone');
-                        }}
-                        isPremium={isPremium}
-                        subscriptionTier={subscriptionTier}
-                        primarySubject={primarySubject}
-                        onUpgrade={openUpgradeModal}
-                        onAnalyzeMistakes={() => {
-                            if (!isPremium) {
-                                openUpgradeModal('om toegang te krijgen tot de foutenanalyse.');
-                                return;
-                            }
-                            // Open chat with mistake context
-                            chatSession.current = ai.chats.create({ model: MODEL_NAME });
-                            const mistakesSummary = currentData.mistakes.slice(0, 5).map(m => m.aiFeedback).join('\n');
-                            setChatHistory([{ role: 'model', text: `Ik heb je laatste ${currentData.mistakes.length} fouten geanalyseerd. Hier zijn patronen die ik zie:\n\n${mistakesSummary}\n\nWil je dat ik specifieke fouten uitleg of oefenvragen maak?` }]);
-                            setIsChatOpen(true);
-                        }}
-                        hasMistakes={currentData.mistakes.length > 0}
-                        currentSubject={currentSubject}
-                        onSubjectChange={setCurrentSubject}
-                        answerLimitReached={answerLimitReached}
-                        dailyAnswers={dailyAnswers}
-                        theme={theme}
-                        setTheme={setTheme}
-                        allBadges={allBadges}
-                        earnedBadges={earnedBadges}
-                        dailyQuests={currentData.dailyQuests}
-                        onGenerateDailyQuests={handleGenerateDailyQuests}
-                        isGeneratingQuests={false}
-                        onStartQuest={(q) => {
-                            // Start the quest based on its type
-                            if (q.type === 'answer_questions') {
-                                // Trigger session proposal
-                                setIsSessionProposalModalOpen(true);
-                            } else if (q.type === 'use_zen_zone') {
-                                setIsZenZoneOpen(true);
-                            } else if (q.type === 'do_repetition' && repetitionQueue.length > 0) {
-                                setCurrentScreen('REPETITION');
-                            } else {
-                                setIsSessionProposalModalOpen(true);
-                            }
-                        }}
-                        onStartExam={() => setIsExamStartModalOpen(true)}
-                        onOpenUploadModal={() => setIsUploadModalOpen(true)}
-                        onOpenOuderDashboard={() => setCurrentScreen('OUDER_DASHBOARD')}
-                        progressHistory={currentData.progressHistory}
-                        flashcardDecks={currentData.flashcardDecks}
-                        onAddFlashcardDeck={() => {
-                            if (!isPremium) {
-                                openUpgradeModal('om flashcard decks te maken.');
-                                return;
-                            }
-                            // For now, open chat to create deck
-                            chatSession.current = ai.chats.create({ model: MODEL_NAME });
-                            setChatHistory([{ role: 'model', text: 'Ik help je een flashcard deck maken! Geef me een onderwerp of plak een samenvatting, dan maak ik er automatisch kaarten van.' }]);
-                            setIsChatOpen(true);
-                        }}
-                        onCreateDeckFromSummary={async () => null}
-                        onGenerateProgressAnalysis={async () => "Lekker bezig!"}
-                        onOpenAuthModal={() => setIsAuthModalOpen(true)}
-                        proactiveInsight={proactiveInsight}
-                        onProactiveAction={() => {
-                            // Execute the proactive insight's suggested action
-                            if (proactiveInsight?.action?.includes('break') || proactiveInsight?.action?.includes('Zen')) {
-                                setIsZenZoneOpen(true);
-                            } else {
-                                setIsSessionProposalModalOpen(true);
-                            }
-                        }}
-                        onShareDeck={() => {
-                            // Copy share link to clipboard
-                            navigator.clipboard.writeText(window.location.origin + '?shared=deck');
-                            alert('Link gekopieerd! (Feature komt binnenkort)');
-                        }}
-                        squadData={squadData}
-                        user={user}
-                        onLogout={() => logout()}
-                        onLogoClick={() => setCurrentScreen('DASHBOARD')}
-                        onOpenSquadOfficeHours={() => {
-                            setInfoModalData({ title: 'Squad Office Hours', content: 'Elke woensdag van 16:00-17:00 kun je live vragen stellen aan onze docenten. Link komt binnenkort!' });
-                            setIsInfoModalOpen(true);
-                        }}
-                        onGenerateParentTips={async () => {
-                            setIsGeneratingParentTip(true);
-                            try {
-                                const avgMastery = Object.values(currentData.masteryScores).reduce((sum, s) => sum + (s.correct / Math.max(s.total, 1)), 0) / Math.max(Object.keys(currentData.masteryScores).length, 1);
-                                const prompt = `Geef 3 korte tips voor ouders over hoe ze hun kind kunnen ondersteunen bij ${currentSubject}. Het kind heeft een gemiddelde beheersing van ${Math.round(avgMastery * 100)}%. Wees positief en praktisch.`;
-                                const response = await generateContentWithRetry({ model: MODEL_NAME, contents: prompt });
-                                setParentTip(response.text || 'Moedig je kind aan en vier kleine successen!');
-                            } catch {
-                                setParentTip('Blijf betrokken bij het leerproces en stel open vragen over wat je kind leert.');
-                            } finally {
-                                setIsGeneratingParentTip(false);
-                            }
-                        }}
-                        parentTip={parentTip}
-                        isGeneratingParentTip={isGeneratingParentTip}
-                        onOpenExamPredictor={() => setIsExamPredictorOpen(true)}
-                        examLevel={examLevel}
-                    />
-                )}
-
-                {currentScreen === 'QUESTION' && currentQuestion && (
-                    <>
-                        <SessionHeader
-                            currentQuestion={activeSession?.currentIndex !== undefined ? activeSession.currentIndex + 1 : 1}
-                            totalQuestions={activeSession?.questions?.length || 1}
-                            subject={currentSubject}
-                            onPause={() => {
-                                if (window.confirm('Wil je de sessie pauzeren? Je voortgang wordt opgeslagen.')) {
-                                    // Save current state and go to dashboard
-                                    setCurrentScreen('DASHBOARD');
-                                }
+                    {currentScreen === 'PRICING' && (
+                        <PricingPage
+                            onBack={() => setCurrentScreen(isAuthenticated ? 'DASHBOARD' : 'WELCOME')}
+                            onUpgrade={(plan) => {
+                                handleSelectPlan(plan);
+                                setCurrentScreen(isAuthenticated ? 'DASHBOARD' : 'WELCOME');
                             }}
-                            onExit={() => {
-                                if (window.confirm('Weet je zeker dat je wilt stoppen? Je kunt later verdergaan.')) {
-                                    setActiveSession(null);
-                                    setCurrentQuestion(null);
-                                    setCurrentScreen('DASHBOARD');
-                                }
+                            isPremium={isPremium}
+                            currentTier={subscriptionTier}
+                        />
+                    )}
+
+                    {currentScreen === 'OUDER_DASHBOARD' && (
+                        <OuderDashboard
+                            onBack={() => setCurrentScreen('DASHBOARD')}
+                            studentName={user?.name || 'Leerling'}
+                            stats={{
+                                hoursThisWeek: Math.round((dailyAnswers.count || 0) * 0.1),
+                                averageScore: Object.values(currentData.masteryScores).length > 0
+                                    ? Math.round(Object.values(currentData.masteryScores).reduce((sum, s) => sum + (s.total > 0 ? (s.correct / s.total) * 100 : 0), 0) / Math.max(1, Object.values(currentData.masteryScores).length))
+                                    : 0,
+                                activeSubjects: [currentSubject],
+                                lastActive: new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }),
+                                totalQuestions: Object.values(currentData.masteryScores).reduce((sum, s) => sum + s.total, 0),
+                                streak: studyStreak,
                             }}
                         />
-                        <div style={{ paddingTop: '80px' }}>
-                            <QuestionCard
-                                question={currentQuestion}
-                                allQuestions={questions}
-                                onSubmit={handleAnswerSubmit}
-                                onGetHint={async () => "Denk aan de kern van de tekst."}
-                                onOralPractice={() => {
-                                    if (currentQuestion) {
-                                        // Open thinking process modal for oral practice
-                                        setThinkingProcessQuestion({ question: currentQuestion, userAnswer: '' });
-                                        setIsThinkingProcessModalOpen(true);
+                    )}
+
+                    {currentScreen === 'DASHBOARD' && (
+                        <Dashboard
+                            masteryScores={currentData.masteryScores}
+                            onStartSession={handleGenerateSessionProposal}
+                            isGeneratingSession={isGeneratingSession}
+                            onReset={handleResetProgress}
+                            studyStreak={studyStreak}
+                            level={level}
+                            xp={xp}
+                            xpForNextLevel={xpForNextLevel}
+                            examDate={currentData.examDate}
+                            setExamDate={(date) => setSubjectData(prev => ({ ...prev, [currentSubject]: { ...prev[currentSubject], examDate: date } }))}
+                            studyPlan={currentData.studyPlan}
+                            generatePlan={handleGenerateOrUpdatePlan}
+                            updatePlan={handleGenerateOrUpdatePlan}
+                            isGeneratingPlan={isGeneratingPlan}
+                            onToggleTask={(wi, ti) => {
+                                // Toggle task completion in study plan
+                                if (currentData.studyPlan) {
+                                    const updatedPlan = { ...currentData.studyPlan };
+                                    if (updatedPlan.weeks[wi] && updatedPlan.weeks[wi].tasks[ti]) {
+                                        updatedPlan.weeks[wi].tasks[ti].completed = !updatedPlan.weeks[wi].tasks[ti].completed;
+                                        if (updatedPlan.weeks[wi].tasks[ti].completed && !updatedPlan.weeks[wi].tasks[ti].xpAwarded) {
+                                            addXp(10);
+                                            updatedPlan.weeks[wi].tasks[ti].xpAwarded = true;
+                                        }
+                                        setSubjectData(prev => ({ ...prev, [currentSubject]: { ...prev[currentSubject], studyPlan: updatedPlan } }));
+                                    }
+                                }
+                            }}
+                            onReviewWeek={(w) => {
+                                // Show week review in info modal
+                                setInfoModalData({ title: 'Weekoverzicht', content: `Week ${w.week_number}: ${w.theme}. ${w.tasks.filter(t => t.completed).length}/${w.tasks.length} taken voltooid.` });
+                                setIsInfoModalOpen(true);
+                            }}
+                            onShowInfo={handleShowInfo}
+                            onStartActionableTask={handlePlannerAction}
+                            repetitionQueue={repetitionQueue}
+                            onStartRepetition={() => {
+                                setCurrentScreen('REPETITION');
+                                updateQuestProgress('do_repetition');
+                            }}
+                            onOpenChat={() => { chatSession.current = ai.chats.create({ model: MODEL_NAME }); setIsChatOpen(true); }}
+                            onOpenChatForQuestionGeneration={() => {
+                                chatSession.current = ai.chats.create({ model: MODEL_NAME });
+                                setChatHistory([{ role: 'model', text: 'Hi! Ik help je graag met het genereren van oefenvragen. Over welk onderwerp binnen ' + currentSubject + ' wil je vragen genereren?' }]);
+                                setIsChatOpen(true);
+                            }}
+                            onOpenZenZone={() => {
+                                setIsZenZoneOpen(true);
+                                updateQuestProgress('use_zen_zone');
+                            }}
+                            isPremium={isPremium}
+                            subscriptionTier={subscriptionTier}
+                            primarySubject={primarySubject}
+                            onUpgrade={openUpgradeModal}
+                            onAnalyzeMistakes={() => {
+                                if (!isPremium) {
+                                    openUpgradeModal('om toegang te krijgen tot de foutenanalyse.');
+                                    return;
+                                }
+                                // Open chat with mistake context
+                                chatSession.current = ai.chats.create({ model: MODEL_NAME });
+                                const mistakesSummary = currentData.mistakes.slice(0, 5).map(m => m.aiFeedback).join('\n');
+                                setChatHistory([{ role: 'model', text: `Ik heb je laatste ${currentData.mistakes.length} fouten geanalyseerd. Hier zijn patronen die ik zie:\n\n${mistakesSummary}\n\nWil je dat ik specifieke fouten uitleg of oefenvragen maak?` }]);
+                                setIsChatOpen(true);
+                            }}
+                            hasMistakes={currentData.mistakes.length > 0}
+                            currentSubject={currentSubject}
+                            onSubjectChange={setCurrentSubject}
+                            answerLimitReached={answerLimitReached}
+                            dailyAnswers={dailyAnswers}
+                            theme={theme}
+                            setTheme={setTheme}
+                            allBadges={allBadges}
+                            earnedBadges={earnedBadges}
+                            dailyQuests={currentData.dailyQuests}
+                            onGenerateDailyQuests={handleGenerateDailyQuests}
+                            isGeneratingQuests={false}
+                            onStartQuest={(q) => {
+                                // Start the quest based on its type
+                                if (q.type === 'answer_questions') {
+                                    // Trigger session proposal
+                                    setIsSessionProposalModalOpen(true);
+                                } else if (q.type === 'use_zen_zone') {
+                                    setIsZenZoneOpen(true);
+                                } else if (q.type === 'do_repetition' && repetitionQueue.length > 0) {
+                                    setCurrentScreen('REPETITION');
+                                } else {
+                                    setIsSessionProposalModalOpen(true);
+                                }
+                            }}
+                            onStartExam={() => setIsExamStartModalOpen(true)}
+                            onOpenUploadModal={() => setIsUploadModalOpen(true)}
+                            onOpenOuderDashboard={() => setCurrentScreen('OUDER_DASHBOARD')}
+                            progressHistory={currentData.progressHistory}
+                            flashcardDecks={currentData.flashcardDecks}
+                            onAddFlashcardDeck={() => {
+                                if (!isPremium) {
+                                    openUpgradeModal('om flashcard decks te maken.');
+                                    return;
+                                }
+                                // For now, open chat to create deck
+                                chatSession.current = ai.chats.create({ model: MODEL_NAME });
+                                setChatHistory([{ role: 'model', text: 'Ik help je een flashcard deck maken! Geef me een onderwerp of plak een samenvatting, dan maak ik er automatisch kaarten van.' }]);
+                                setIsChatOpen(true);
+                            }}
+                            onCreateDeckFromSummary={async () => null}
+                            onGenerateProgressAnalysis={async () => "Lekker bezig!"}
+                            onOpenAuthModal={() => setIsAuthModalOpen(true)}
+                            proactiveInsight={proactiveInsight}
+                            onProactiveAction={() => {
+                                // Execute the proactive insight's suggested action
+                                if (proactiveInsight?.action?.includes('break') || proactiveInsight?.action?.includes('Zen')) {
+                                    setIsZenZoneOpen(true);
+                                } else {
+                                    setIsSessionProposalModalOpen(true);
+                                }
+                            }}
+                            onShareDeck={() => {
+                                // Copy share link to clipboard
+                                navigator.clipboard.writeText(window.location.origin + '?shared=deck');
+                                alert('Link gekopieerd! (Feature komt binnenkort)');
+                            }}
+                            squadData={squadData}
+                            user={user}
+                            onLogout={() => logout()}
+                            onLogoClick={() => setCurrentScreen('DASHBOARD')}
+                            onOpenSquadOfficeHours={() => {
+                                setInfoModalData({ title: 'Squad Office Hours', content: 'Elke woensdag van 16:00-17:00 kun je live vragen stellen aan onze docenten. Link komt binnenkort!' });
+                                setIsInfoModalOpen(true);
+                            }}
+                            onGenerateParentTips={async () => {
+                                setIsGeneratingParentTip(true);
+                                try {
+                                    const avgMastery = Object.values(currentData.masteryScores).reduce((sum, s) => sum + (s.correct / Math.max(s.total, 1)), 0) / Math.max(Object.keys(currentData.masteryScores).length, 1);
+                                    const prompt = `Geef 3 korte tips voor ouders over hoe ze hun kind kunnen ondersteunen bij ${currentSubject}. Het kind heeft een gemiddelde beheersing van ${Math.round(avgMastery * 100)}%. Wees positief en praktisch.`;
+                                    const response = await generateContentWithRetry({ model: MODEL_NAME, contents: prompt });
+                                    setParentTip(response.text || 'Moedig je kind aan en vier kleine successen!');
+                                } catch {
+                                    setParentTip('Blijf betrokken bij het leerproces en stel open vragen over wat je kind leert.');
+                                } finally {
+                                    setIsGeneratingParentTip(false);
+                                }
+                            }}
+                            parentTip={parentTip}
+                            isGeneratingParentTip={isGeneratingParentTip}
+                            onOpenExamPredictor={() => setIsExamPredictorOpen(true)}
+                            examLevel={examLevel}
+                        />
+                    )}
+
+                    {currentScreen === 'QUESTION' && currentQuestion && (
+                        <>
+                            <SessionHeader
+                                currentQuestion={activeSession?.currentIndex !== undefined ? activeSession.currentIndex + 1 : 1}
+                                totalQuestions={activeSession?.questions?.length || 1}
+                                subject={currentSubject}
+                                onPause={() => {
+                                    if (window.confirm('Wil je de sessie pauzeren? Je voortgang wordt opgeslagen.')) {
+                                        // Save current state and go to dashboard
+                                        setCurrentScreen('DASHBOARD');
                                     }
                                 }}
-                                user={user}
+                                onExit={() => {
+                                    if (window.confirm('Weet je zeker dat je wilt stoppen? Je kunt later verdergaan.')) {
+                                        setActiveSession(null);
+                                        setCurrentQuestion(null);
+                                        setCurrentScreen('DASHBOARD');
+                                    }
+                                }}
                             />
-                        </div>
-                    </>
-                )}
+                            <div style={{ paddingTop: '80px' }}>
+                                <QuestionCard
+                                    question={currentQuestion}
+                                    allQuestions={questions}
+                                    onSubmit={handleAnswerSubmit}
+                                    onGetHint={async () => "Denk aan de kern van de tekst."}
+                                    onOralPractice={() => {
+                                        if (currentQuestion) {
+                                            // Open thinking process modal for oral practice
+                                            setThinkingProcessQuestion({ question: currentQuestion, userAnswer: '' });
+                                            setIsThinkingProcessModalOpen(true);
+                                        }
+                                    }}
+                                    user={user}
+                                />
+                            </div>
+                        </>
+                    )}
 
-                {currentScreen === 'LOADING' && <LoadingCard />}
+                    {currentScreen === 'LOADING' && <LoadingCard />}
 
-                {currentScreen === 'FEEDBACK' && (
-                    <FeedbackCard
-                        question={lastAnswer.question}
-                        isCorrect={lastAnswer.isCorrect}
-                        onNext={nextQuestion ? handleNextQuestion : null}
-                        onDashboard={() => { setActiveSession(null); setCurrentScreen('DASHBOARD'); }}
-                        inSession={!!activeSession}
-                        isLastQuestionInSession={!nextQuestion}
-                        feedbackData={{ xpGained: lastAnswer.xpGained, aiFeedback: lastAnswer.aiFeedback, mindsetTip: '' }}
-                        onOpenChat={handleChatAboutQuestion}
-                        onExplainConcept={handleExplainConcept}
-                        onAnalyzeThinkingProcess={handleAnalyzeThinkingProcess}
-                        answerLimitReached={answerLimitReached}
-                        onUpgrade={() => openUpgradeModal('verder te gaan')}
-                        onGetSimplifiedExplanation={handleExplainEli5}
-                        onGetAnalogy={handleGetAnalogy}
+                    {currentScreen === 'FEEDBACK' && (
+                        <FeedbackCard
+                            question={lastAnswer.question}
+                            isCorrect={lastAnswer.isCorrect}
+                            onNext={nextQuestion ? handleNextQuestion : null}
+                            onDashboard={() => { setActiveSession(null); setCurrentScreen('DASHBOARD'); }}
+                            inSession={!!activeSession}
+                            isLastQuestionInSession={!nextQuestion}
+                            feedbackData={{ xpGained: lastAnswer.xpGained, aiFeedback: lastAnswer.aiFeedback, mindsetTip: '' }}
+                            onOpenChat={handleChatAboutQuestion}
+                            onExplainConcept={handleExplainConcept}
+                            onAnalyzeThinkingProcess={handleAnalyzeThinkingProcess}
+                            answerLimitReached={answerLimitReached}
+                            onUpgrade={() => openUpgradeModal('verder te gaan')}
+                            onGetSimplifiedExplanation={handleExplainEli5}
+                            onGetAnalogy={handleGetAnalogy}
+                        />
+                    )}
+
+                    <ChatModal
+                        isOpen={isChatOpen} onClose={() => setIsChatOpen(false)}
+                        chatHistory={chatHistory} onSendMessage={handleSendMessage}
+                        isSending={isSendingMessage} chatLimitReached={chatLimitReached}
                     />
-                )}
 
-                <ChatModal
-                    isOpen={isChatOpen} onClose={() => setIsChatOpen(false)}
-                    chatHistory={chatHistory} onSendMessage={handleSendMessage}
-                    isSending={isSendingMessage} chatLimitReached={chatLimitReached}
-                />
-
-                <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onUpgrade={handleSelectPlan} reason={upgradeModalReason} currentTier={subscriptionTier} />
-                <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} selectedPlan={selectedPlan} onPaymentSuccess={(plan) => {
-                    setSubscriptionTier(plan);
-                    // Force sync subscription tier to Firestore immediately
-                    const userId = getUserIdFromAuth(user as any);
-                    if (userId) {
-                        forceSync(userId, { isPremium: true, subscriptionTier: plan });
-                    }
-                }} />
-                <ZenZoneModal isOpen={isZenZoneOpen} onClose={() => setIsZenZoneOpen(false)} affirmation={affirmation} onGenerateAffirmation={async () => {
-                    setIsGeneratingAffirmation(true);
-                    try {
-                        const prompt = `Genereer een korte, motiverende affirmatie voor een ${examLevel} student die studeert voor ${currentSubject}. Max 2 zinnen. Wees warm en bemoedigend.`;
-                        const response = await generateContentWithRetry({ model: MODEL_NAME, contents: prompt });
-                        setAffirmation(response.text || 'Je bent sterker dan je denkt. Elke stap telt!');
-                    } catch {
-                        setAffirmation('Je bent sterker dan je denkt. Elke stap telt!');
-                    } finally {
-                        setIsGeneratingAffirmation(false);
-                    }
-                }} isGenerating={isGeneratingAffirmation} />
-                <ExamPredictorModal isOpen={isExamPredictorOpen} onClose={() => setIsExamPredictorOpen(false)} subject={currentSubject} examLevel={examLevel} />
-                <UploadAnalysisModal
-                    isOpen={isUploadModalOpen}
-                    onClose={() => setIsUploadModalOpen(false)}
-                    onAnalyze={async (file: File) => {
-                        setIsAnalyzingUpload(true);
+                    <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onUpgrade={handleSelectPlan} reason={upgradeModalReason} currentTier={subscriptionTier} />
+                    <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} selectedPlan={selectedPlan} onPaymentSuccess={(plan) => {
+                        setSubscriptionTier(plan);
+                        // Force sync subscription tier to Firestore immediately
+                        const userId = getUserIdFromAuth(user as any);
+                        if (userId) {
+                            forceSync(userId, { isPremium: true, subscriptionTier: plan });
+                        }
+                    }} />
+                    <ZenZoneModal isOpen={isZenZoneOpen} onClose={() => setIsZenZoneOpen(false)} affirmation={affirmation} onGenerateAffirmation={async () => {
+                        setIsGeneratingAffirmation(true);
                         try {
-                            const reader = new FileReader();
-                            const base64 = await new Promise<string>((resolve) => {
-                                reader.onload = () => resolve((reader.result as string).split(',')[1]);
-                                reader.readAsDataURL(file);
-                            });
-                            const mimeType = file.type as 'image/jpeg' | 'image/png' | 'image/webp';
-                            const response = await generateContentWithRetry({
-                                model: MODEL_NAME,
-                                contents: [
-                                    {
-                                        inlineData: { mimeType, data: base64 },
-                                    },
-                                    `Analyseer deze samenvatting van een ${examLevel}-leerling voor het vak ${currentSubject}. Geef:
+                            const prompt = `Genereer een korte, motiverende affirmatie voor een ${examLevel} student die studeert voor ${currentSubject}. Max 2 zinnen. Wees warm en bemoedigend.`;
+                            const response = await generateContentWithRetry({ model: MODEL_NAME, contents: prompt });
+                            setAffirmation(response.text || 'Je bent sterker dan je denkt. Elke stap telt!');
+                        } catch {
+                            setAffirmation('Je bent sterker dan je denkt. Elke stap telt!');
+                        } finally {
+                            setIsGeneratingAffirmation(false);
+                        }
+                    }} isGenerating={isGeneratingAffirmation} />
+                    <ExamPredictorModal isOpen={isExamPredictorOpen} onClose={() => setIsExamPredictorOpen(false)} subject={currentSubject} examLevel={examLevel} />
+                    <UploadAnalysisModal
+                        isOpen={isUploadModalOpen}
+                        onClose={() => setIsUploadModalOpen(false)}
+                        onAnalyze={async (file: File) => {
+                            setIsAnalyzingUpload(true);
+                            try {
+                                const reader = new FileReader();
+                                const base64 = await new Promise<string>((resolve) => {
+                                    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+                                    reader.readAsDataURL(file);
+                                });
+                                const mimeType = file.type as 'image/jpeg' | 'image/png' | 'image/webp';
+                                const response = await generateContentWithRetry({
+                                    model: MODEL_NAME,
+                                    contents: [
+                                        {
+                                            inlineData: { mimeType, data: base64 },
+                                        },
+                                        `Analyseer deze samenvatting van een ${examLevel}-leerling voor het vak ${currentSubject}. Geef:
 1. Een beoordeling van de kwaliteit (volledigheid, juistheid, structuur)
 2. Wat er goed is
 3. Wat er ontbreekt of verbeterd kan worden
@@ -1406,108 +1386,109 @@ JSON output.`;
 5. Een eindscore van 1-10
 
 Wees constructief en bemoedigend maar eerlijk.`,
-                                ],
-                            });
-                            setIsUploadModalOpen(false);
-                            // Show analysis result in info modal
-                            setInfoModalData({
-                                title: '📊 Samenvatting Analyse',
-                                content: response.text || 'Analyse kon niet worden gegenereerd.',
-                            });
-                            setIsInfoModalOpen(true);
-                        } catch (err) {
-                            console.error('Upload analysis failed:', err);
-                            alert('Er ging iets mis bij de analyse. Probeer het opnieuw.');
-                        } finally {
-                            setIsAnalyzingUpload(false);
-                        }
-                    }}
-                    isAnalyzing={isAnalyzingUpload}
-                />
-                <PulseCheckModal isOpen={isPulseCheckModalOpen} onClose={() => handlePulseCheckSubmit(0, 'skipped')} onSubmit={handlePulseCheckSubmit} subject={currentSubject} userName={user?.name || 'Student'} />
-                <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
-                <ExamStartModal
-                    isOpen={isExamStartModalOpen}
-                    onClose={() => setIsExamStartModalOpen(false)}
-                    onConfirm={() => {
-                        setIsExamStartModalOpen(false);
-                        // Start exam simulation with available questions
-                        const questionPool = isPremium ? questions : questions.filter(q => freeQuestionIds.includes(q.id));
-                        const examQuestions = questionPool
-                            .sort(() => Math.random() - 0.5)
-                            .slice(0, 20);
-                        if (examQuestions.length > 0) {
-                            setActiveSession({
-                                questions: examQuestions,
-                                currentIndex: 0
-                            });
-                            setCurrentQuestion(examQuestions[0]);
-                            setCurrentScreen('EXAM_SIMULATION');
-                        } else {
-                            openUpgradeModal('om toegang te krijgen tot het proefexamen.');
-                        }
-                    }}
-                    questionCount={20}
-                    timeLimitMinutes={60}
-                />
-                {isSessionProposalModalOpen && <SessionProposalModal isOpen={isSessionProposalModalOpen} onClose={() => setIsSessionProposalModalOpen(false)} onStart={handleStartPersonalizedSession} proposal={proposedSession} />}
-                {isInfoModalOpen && <InfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} title={infoModalData.title} content={infoModalData.content} />}
+                                    ],
+                                });
+                                setIsUploadModalOpen(false);
+                                // Show analysis result in info modal
+                                setInfoModalData({
+                                    title: '📊 Samenvatting Analyse',
+                                    content: response.text || 'Analyse kon niet worden gegenereerd.',
+                                });
+                                setIsInfoModalOpen(true);
+                            } catch (err) {
+                                console.error('Upload analysis failed:', err);
+                                alert('Er ging iets mis bij de analyse. Probeer het opnieuw.');
+                            } finally {
+                                setIsAnalyzingUpload(false);
+                            }
+                        }}
+                        isAnalyzing={isAnalyzingUpload}
+                    />
+                    <PulseCheckModal isOpen={isPulseCheckModalOpen} onClose={() => handlePulseCheckSubmit(0, 'skipped')} onSubmit={handlePulseCheckSubmit} subject={currentSubject} userName={user?.name || 'Student'} />
+                    <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+                    <ExamStartModal
+                        isOpen={isExamStartModalOpen}
+                        onClose={() => setIsExamStartModalOpen(false)}
+                        onConfirm={() => {
+                            setIsExamStartModalOpen(false);
+                            // Start exam simulation with available questions
+                            const questionPool = isPremium ? questions : questions.filter(q => freeQuestionIds.includes(q.id));
+                            const examQuestions = questionPool
+                                .sort(() => Math.random() - 0.5)
+                                .slice(0, 20);
+                            if (examQuestions.length > 0) {
+                                setActiveSession({
+                                    questions: examQuestions,
+                                    currentIndex: 0
+                                });
+                                setCurrentQuestion(examQuestions[0]);
+                                setCurrentScreen('EXAM_SIMULATION');
+                            } else {
+                                openUpgradeModal('om toegang te krijgen tot het proefexamen.');
+                            }
+                        }}
+                        questionCount={20}
+                        timeLimitMinutes={60}
+                    />
+                    {isSessionProposalModalOpen && <SessionProposalModal isOpen={isSessionProposalModalOpen} onClose={() => setIsSessionProposalModalOpen(false)} onStart={handleStartPersonalizedSession} proposal={proposedSession} />}
+                    {isInfoModalOpen && <InfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} title={infoModalData.title} content={infoModalData.content} />}
 
-                <ConceptExplanationModal
-                    isOpen={isConceptModalOpen}
-                    onClose={() => setIsConceptModalOpen(false)}
-                    conceptName={conceptToExplain?.kern_vaardigheid || 'Concept'}
-                    explanation={conceptExplanation}
-                    isLoading={isGeneratingExplanation}
-                    onExplainEli5={handleExplainEli5}
-                />
+                    <ConceptExplanationModal
+                        isOpen={isConceptModalOpen}
+                        onClose={() => setIsConceptModalOpen(false)}
+                        conceptName={conceptToExplain?.kern_vaardigheid || 'Concept'}
+                        explanation={conceptExplanation}
+                        isLoading={isGeneratingExplanation}
+                        onExplainEli5={handleExplainEli5}
+                    />
 
-                <ThinkingProcessModal
-                    isOpen={isThinkingProcessModalOpen}
-                    onClose={() => setIsThinkingProcessModalOpen(false)}
-                    questionContext={thinkingProcessQuestion}
-                    onAnalyze={processThinkingAnalysis}
-                />
+                    <ThinkingProcessModal
+                        isOpen={isThinkingProcessModalOpen}
+                        onClose={() => setIsThinkingProcessModalOpen(false)}
+                        questionContext={thinkingProcessQuestion}
+                        onAnalyze={processThinkingAnalysis}
+                    />
 
-                {/* Onboarding Modal for New Users */}
-                <OnboardingModal
-                    isOpen={isOnboardingModalOpen}
-                    onComplete={(data) => {
-                        // Save onboarding data with user-specific key
-                        setHasCompletedOnboarding(true);
-                        if (firebaseUser) {
-                            localStorage.setItem(`onboarding_done_${firebaseUser.uid}`, 'true');
-                            localStorage.setItem(`examLevel_${firebaseUser.uid}`, JSON.stringify(data.level));
-                        }
-                        // Also save globally for backwards compatibility
-                        localStorage.setItem('hasCompletedOnboarding', JSON.stringify(true));
+                    {/* Onboarding Modal for New Users */}
+                    <OnboardingModal
+                        isOpen={isOnboardingModalOpen}
+                        onComplete={(data) => {
+                            // Save onboarding data with user-specific key
+                            setHasCompletedOnboarding(true);
+                            if (firebaseUser) {
+                                localStorage.setItem(`onboarding_done_${firebaseUser.uid}`, 'true');
+                                localStorage.setItem(`examLevel_${firebaseUser.uid}`, JSON.stringify(data.level));
+                            }
+                            // Also save globally for backwards compatibility
+                            localStorage.setItem('hasCompletedOnboarding', JSON.stringify(true));
 
-                        // Save exam level
-                        setExamLevel(data.level as ExamLevel);
-                        localStorage.setItem('examLevel', JSON.stringify(data.level));
+                            // Save exam level
+                            setExamLevel(data.level as ExamLevel);
+                            localStorage.setItem('examLevel', JSON.stringify(data.level));
 
-                        // Set user's first subject
-                        if (data.subjects.length > 0) {
-                            setCurrentSubject(data.subjects[0] as any);
-                        }
+                            // Set user's first subject
+                            if (data.subjects.length > 0) {
+                                setCurrentSubject(data.subjects[0] as any);
+                            }
 
-                        // Set exam date for first subject
-                        if (data.examDate && data.subjects.length > 0) {
-                            setSubjectData(prev => ({
-                                ...prev,
-                                [data.subjects[0]]: {
-                                    ...prev[data.subjects[0] as keyof typeof prev],
-                                    examDate: data.examDate
-                                }
-                            }));
-                        }
+                            // Set exam date for first subject
+                            if (data.examDate && data.subjects.length > 0) {
+                                setSubjectData(prev => ({
+                                    ...prev,
+                                    [data.subjects[0]]: {
+                                        ...prev[data.subjects[0] as keyof typeof prev],
+                                        examDate: data.examDate
+                                    }
+                                }));
+                            }
 
-                        setIsOnboardingModalOpen(false);
-                        setCurrentScreen('DASHBOARD');
-                    }}
-                    userName={user?.name}
-                />
-            </div>
+                            setIsOnboardingModalOpen(false);
+                            setCurrentScreen('DASHBOARD');
+                        }}
+                        userName={user?.name}
+                    />
+                </div>
+            </Suspense>
         </>
     );
 };

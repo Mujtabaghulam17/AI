@@ -45,7 +45,7 @@ const SummaryHub: React.FC<SummaryHubProps> = ({ currentSubject, onOpenChat, onC
             const maxRetries = 3;
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    response = await ai.models.generateContent({ model: MODEL_NAME, contents: prompt });
+                    response = await ai.models.generateContent({ model: MODEL_NAME, contents: prompt, config: { thinkingConfig: { thinkingBudget: 0 } } });
                     break; // Success, exit retry loop
                 } catch (error) {
                     console.warn(`Error generating summary (attempt ${attempt}/${maxRetries}):`, error);
@@ -85,6 +85,7 @@ const SummaryHub: React.FC<SummaryHubProps> = ({ currentSubject, onOpenChat, onC
                         contents: prompt,
                         config: {
                             responseMimeType: 'application/json',
+                            thinkingConfig: { thinkingBudget: 0 },
                             responseSchema: {
                                 type: Type.OBJECT,
                                 properties: {

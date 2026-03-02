@@ -135,7 +135,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onPaymentS
                         fontSize: '13px',
                         color: 'var(--subtle-text)'
                     }}>
-                        ⚠️ Demo modus - Configureer <code>VITE_STRIPE_PAYMENT_LINK</code> in je .env.local
+                        ⚠️ Betalingen zijn tijdelijk niet beschikbaar. Probeer het later opnieuw.
                     </div>
                 )}
 

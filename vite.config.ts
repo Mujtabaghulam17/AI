@@ -9,8 +9,9 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // Gemini API key
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      // NOTE: Gemini API_KEY is NOT injected here — it stays server-side in /api/ai.ts
+      // For local development, it's still available via loadEnv for direct SDK fallback
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
 
       // Firebase configuration
       'process.env.VITE_FIREBASE_API_KEY': JSON.stringify(env.VITE_FIREBASE_API_KEY),

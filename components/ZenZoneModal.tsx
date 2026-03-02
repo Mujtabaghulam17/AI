@@ -81,6 +81,7 @@ const ZenZoneModal: React.FC<ZenZoneModalProps> = ({ isOpen, onClose, affirmatio
                 contents: exercisePrompt,
                 config: {
                     responseMimeType: "application/json",
+                    thinkingConfig: { thinkingBudget: 0 },
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
