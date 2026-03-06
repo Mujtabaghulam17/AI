@@ -299,7 +299,7 @@ Eisen:
 
                             {/* Domain predictions */}
                             <h4 style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                                DOMEIN VOORSPELLINGEN
+                                DOMEIN KANSBEREKENING
                             </h4>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {prediction.predictions.map((pred) => {
@@ -370,6 +370,9 @@ Eisen:
                                     </span>
                                 ))}
                             </div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--subtle-text)', textAlign: 'center', marginTop: '10px', fontStyle: 'italic' }}>
+                                Kansberekeningen op basis van historische examenpatronen. Geen garantie op exacte examenvragen.
+                            </p>
                         </>
                     )}
 
