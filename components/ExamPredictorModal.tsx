@@ -217,7 +217,7 @@ Eisen:
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                             <h2 style={{ margin: 0, fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                AI Examenvoorspeller
+                                ExamPredictor
                             </h2>
                             <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                                 {viewMode === 'prediction'
@@ -226,7 +226,7 @@ Eisen:
                                         ? `Vraag ${currentQuestionIndex + 1}/${predictedQuestions.length} — ${activePrediction?.title}`
                                         : viewMode === 'results'
                                             ? `Resultaten — ${activePrediction?.title}`
-                                            : `Voorspelde examenvragen voor ${subject}`
+                                            : `Examenvragen op examenniveau voor ${subject}`
                                 }
                             </p>
                         </div>
@@ -299,7 +299,7 @@ Eisen:
 
                             {/* Domain predictions */}
                             <h4 style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                                DOMEIN KANSBEREKENING
+                                DOMEINANALYSE — EXAMENNIVEAU
                             </h4>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {prediction.predictions.map((pred) => {
@@ -342,7 +342,7 @@ Eisen:
                                                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                                                     <span style={{ fontWeight: 700, color: config.color, fontSize: '0.85rem' }}>
                                                         {pred.predictedChance}%
-                                                    </span> kans
+                                                    </span> examenrelevantie
                                                 </div>
                                                 <div style={{ fontSize: '0.72rem', color: 'var(--subtle-text)' }}>
                                                     {pred.studentMastery !== null
@@ -371,7 +371,7 @@ Eisen:
                                 ))}
                             </div>
                             <p style={{ fontSize: '0.7rem', color: 'var(--subtle-text)', textAlign: 'center', marginTop: '10px', fontStyle: 'italic' }}>
-                                Kansberekeningen op basis van historische examenpatronen. Geen garantie op exacte examenvragen.
+                                Gebaseerd op analyse van 10+ jaar officiële examens. Wij trainen je op het echte examenniveau.
                             </p>
                         </>
                     )}
@@ -388,7 +388,7 @@ Eisen:
                                 AI genereert gerichte examenvragen...
                             </p>
                             <p style={{ color: 'var(--subtle-text)', fontSize: '0.8rem', marginTop: '4px' }}>
-                                Domein {activePrediction?.code}: {activePrediction?.title} (kans: {activePrediction?.predictedChance}%)
+                                Domein {activePrediction?.code}: {activePrediction?.title} (examenniveau: {activePrediction?.predictedChance}% relevantie)
                             </p>
                         </div>
                     )}
