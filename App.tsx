@@ -882,10 +882,12 @@ JSON output.`;
                     generateContentWithRetry({ model: MODEL_NAME, contents: gradingPrompt }),
                     10000 // 10 second timeout for grading
                 );
-                isCorrect = (gradingResponse.text || '').trim().toUpperCase().includes('CORRECT');
+                const gradingText = (gradingResponse.text || '').trim().toUpperCase();
+                // Check for INCORRECT first, since "INCORRECT" contains "CORRECT"
+                isCorrect = !gradingText.includes('INCORRECT') && gradingText.includes('CORRECT');
             } catch (e) {
                 console.error("Grading failed:", e);
-                isCorrect = answer.length > 5; // Fallback: assume correct if longer answer
+                isCorrect = false; // Bij fout in beoordeling, markeer als incorrect
             }
         }
 
