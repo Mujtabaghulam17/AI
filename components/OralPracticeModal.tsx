@@ -70,7 +70,7 @@ const OralPracticeModal: React.FC<OralPracticeModalProps> = ({ isOpen, onClose, 
             audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
             
             sessionPromise.current = ai.live.connect({
-                model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+                model: 'gemini-2.5-flash-native-audio-preview-12-2025',
                 callbacks: {
                     onopen: () => {
                         const source = audioContextRef.current!.createMediaStreamSource(stream);

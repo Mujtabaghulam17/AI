@@ -111,6 +111,8 @@ export interface UserFirestoreData {
     isPremium: boolean; // Legacy — kept for backward compatibility
     subscriptionTier?: SubscriptionTier; // 'free' | 'focus' | 'totaal'
     primarySubject?: string; // The subject chosen at onboarding (used for Focus tier gating)
+    onboardingCompleted?: boolean; // Whether user has completed the onboarding flow
+    onboardingData?: { level?: string; subjects?: string[]; examDate?: string }; // Data from onboarding
     stripeCustomerId?: string;
     subscriptionId?: string;
     subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing';

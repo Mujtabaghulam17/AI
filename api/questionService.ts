@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, writeBatch, doc, addDoc, limit as firestoreLimit } from 'firebase/firestore';
 import { db } from './firebase.ts';
 import type { Question } from '../data/data.ts';
 import { getHardcodedQuestions } from '../data/questionHelper.ts';
@@ -23,13 +23,15 @@ interface CacheEntry {
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const COLLECTION_NAME = 'questions';
+const AI_COLLECTION_NAME = 'generated_questions';
 const memoryCache = new Map<string, Question[]>();
 
 // ─── Core API ───────────────────────────────────────────────────────────────
 
 /**
  * Get questions for a subject + level combo.
- * Priority: memory cache → localStorage cache → Firestore → hardcoded fallback
+ * Merges hardcoded + official Firestore + AI-generated Firestore questions.
+ * Priority: memory cache → localStorage cache → Firestore + AI → hardcoded fallback
  */
 export async function getQuestions(subject: string, level: string = 'vwo'): Promise<Question[]> {
     const cacheKey = `${subject}_${level}`;
@@ -53,7 +55,14 @@ export async function getQuestions(subject: string, level: string = 'vwo'): Prom
         // localStorage unavailable or corrupted — continue
     }
 
-    // 3. Firestore
+    // Start with hardcoded questions as base
+    const hardcoded = getHardcodedQuestions(subject);
+    const allQuestions = new Map<number | string, Question>();
+
+    // Add hardcoded questions
+    hardcoded.forEach(q => allQuestions.set(q.id, q));
+
+    // 3. Firestore official questions
     try {
         if (!db) throw new Error('Firestore not initialized');
 
@@ -65,9 +74,9 @@ export async function getQuestions(subject: string, level: string = 'vwo'): Prom
         const snapshot = await getDocs(q);
 
         if (!snapshot.empty) {
-            const questions: Question[] = snapshot.docs.map(docSnap => {
+            snapshot.docs.forEach(docSnap => {
                 const data = docSnap.data();
-                return {
+                const question: Question = {
                     id: data.id ?? docSnap.id,
                     examen_id: data.examen_id,
                     vraag_nummer: data.vraag_nummer,
@@ -83,30 +92,187 @@ export async function getQuestions(subject: string, level: string = 'vwo'): Prom
                     options: data.options,
                     correct_option: data.correct_option,
                 } as Question;
+                allQuestions.set(question.id, question);
             });
-
-            // Cache the results
-            memoryCache.set(cacheKey, questions);
-            try {
-                localStorage.setItem(`questions_${cacheKey}`, JSON.stringify({
-                    data: questions,
-                    timestamp: Date.now(),
-                } as CacheEntry));
-            } catch {
-                // localStorage full or unavailable — no-op
-            }
-
-            return questions;
         }
     } catch (error) {
-        console.warn(`[QuestionService] Firestore fetch failed for ${cacheKey}, falling back to hardcoded:`, error);
+        console.warn(`[QuestionService] Official Firestore fetch failed for ${cacheKey}:`, error);
     }
 
-    // 4. Hardcoded fallback (always works, offline-safe)
-    const fallback = getHardcodedQuestions(subject);
-    memoryCache.set(cacheKey, fallback);
-    return fallback;
+    // 4. Firestore AI-generated questions
+    try {
+        if (db) {
+            const aiQ = query(
+                collection(db, AI_COLLECTION_NAME),
+                where('subject', '==', subject),
+                where('level', '==', level),
+                where('approved', '==', true)
+            );
+            const aiSnapshot = await getDocs(aiQ);
+
+            if (!aiSnapshot.empty) {
+                aiSnapshot.docs.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const question: Question = {
+                        id: data.id ?? `ai_${docSnap.id}`,
+                        examen_id: data.examen_id || `AI_${subject}_${level}`,
+                        vraag_nummer: data.vraag_nummer || 0,
+                        tekst_naam: data.tekst_naam || '',
+                        vraag_passage: data.vraag_passage,
+                        vraag_tekst: data.vraag_tekst,
+                        vraag_type: data.vraag_type || 'open',
+                        kern_vaardigheid: data.kern_vaardigheid,
+                        max_score: data.max_score || 3,
+                        correctie_model: data.correctie_model || '',
+                        difficulty: data.difficulty || 2,
+                        context_id: data.context_id,
+                        options: data.options,
+                        correct_option: data.correct_option,
+                    } as Question;
+                    allQuestions.set(question.id, question);
+                });
+            }
+        }
+    } catch (error) {
+        console.warn(`[QuestionService] AI questions fetch failed for ${cacheKey}:`, error);
+    }
+
+    const merged = Array.from(allQuestions.values());
+
+    // Cache the merged results
+    memoryCache.set(cacheKey, merged);
+    try {
+        localStorage.setItem(`questions_${cacheKey}`, JSON.stringify({
+            data: merged,
+            timestamp: Date.now(),
+        } as CacheEntry));
+    } catch {
+        // localStorage full or unavailable — no-op
+    }
+
+    return merged;
 }
+
+// ─── AI Question Saving ─────────────────────────────────────────────────────
+
+let nextAiQuestionId = Date.now();
+
+/**
+ * Save an AI-generated question to Firestore for reuse by other students.
+ * Questions are saved with approved=true since they've been AI-generated with our prompts.
+ * Returns the assigned question ID.
+ */
+export async function saveGeneratedQuestion(
+    question: Partial<Question>,
+    subject: string,
+    level: string,
+    skill: string
+): Promise<number | string> {
+    const questionId = nextAiQuestionId++;
+
+    const questionDoc = {
+        id: questionId,
+        examen_id: `AI_${level.toUpperCase()}_${subject}_${new Date().getFullYear()}`,
+        vraag_nummer: 0,
+        tekst_naam: '',
+        vraag_passage: question.vraag_passage || '',
+        vraag_tekst: question.vraag_tekst || '',
+        vraag_type: question.vraag_type || 'open',
+        kern_vaardigheid: skill,
+        max_score: question.max_score || 3,
+        correctie_model: question.correctie_model || '',
+        difficulty: question.difficulty || 2,
+        options: question.options || [],
+        correct_option: question.correct_option || '',
+        // Metadata
+        subject,
+        level: level.toLowerCase(),
+        source: 'ai_generated' as const,
+        approved: true,
+        createdAt: Date.now(),
+    };
+
+    try {
+        if (!db) throw new Error('Firestore not initialized');
+        await addDoc(collection(db, AI_COLLECTION_NAME), questionDoc);
+
+        // Invalidate cache so next load includes the new question
+        invalidateQuestionCache(subject, level.toLowerCase());
+
+        console.log(`[QuestionService] Saved AI question ${questionId} for ${subject}/${level}/${skill}`);
+    } catch (error) {
+        console.warn('[QuestionService] Failed to save AI question to Firestore:', error);
+        // Continue anyway — the question still works locally
+    }
+
+    return questionId;
+}
+
+/**
+ * Save multiple AI-generated questions at once (batch write).
+ */
+export async function saveGeneratedQuestionsBatch(
+    questions: Array<{ question: Partial<Question>; subject: string; level: string; skill: string }>
+): Promise<number[]> {
+    const ids: number[] = [];
+
+    if (!db) {
+        console.warn('[QuestionService] Firestore not initialized, skipping batch save');
+        return ids;
+    }
+
+    try {
+        const batch = writeBatch(db);
+        for (const { question, subject, level, skill } of questions) {
+            const questionId = nextAiQuestionId++;
+            ids.push(questionId);
+
+            const docRef = doc(collection(db, AI_COLLECTION_NAME));
+            batch.set(docRef, {
+                id: questionId,
+                examen_id: `AI_${level.toUpperCase()}_${subject}_${new Date().getFullYear()}`,
+                vraag_nummer: 0,
+                tekst_naam: '',
+                vraag_passage: question.vraag_passage || '',
+                vraag_tekst: question.vraag_tekst || '',
+                vraag_type: question.vraag_type || 'open',
+                kern_vaardigheid: skill,
+                max_score: question.max_score || 3,
+                correctie_model: question.correctie_model || '',
+                difficulty: question.difficulty || 2,
+                options: question.options || [],
+                correct_option: question.correct_option || '',
+                subject,
+                level: level.toLowerCase(),
+                source: 'ai_generated' as const,
+                approved: true,
+                createdAt: Date.now(),
+            });
+        }
+
+        await batch.commit();
+        console.log(`[QuestionService] Batch saved ${ids.length} AI questions`);
+
+        // Invalidate relevant caches
+        const subjects = new Set(questions.map(q => q.subject));
+        const levels = new Set(questions.map(q => q.level.toLowerCase()));
+        subjects.forEach(s => levels.forEach(l => invalidateQuestionCache(s, l)));
+    } catch (error) {
+        console.warn('[QuestionService] Batch save failed:', error);
+    }
+
+    return ids;
+}
+
+/**
+ * Get count of available questions for a subject/level (without full load).
+ */
+export async function getQuestionCount(subject: string, level: string): Promise<number> {
+    const questions = await getQuestions(subject, level);
+    return questions.length;
+}
+
+// ─── Cache Management ───────────────────────────────────────────────────────
 
 /**
  * Invalidate the cache for a specific subject + level (or all).

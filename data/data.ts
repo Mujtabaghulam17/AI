@@ -127,9 +127,17 @@ export interface MoodEntry {
     focus: string;
 }
 
+export interface AnsweredEntry {
+    id: number | string;
+    timestamp: number; // Date.now() when answered
+}
+
 export interface SubjectSpecificData {
     masteryScores: { [key: string]: MasteryScore };
-    answeredIds: number[];
+    /** @deprecated Use answeredEntries for new code. Kept for backward compat. */
+    answeredIds: (number | string)[];
+    /** Timestamped answer records for smart recycling */
+    answeredEntries?: AnsweredEntry[];
     mistakes: Mistake[];
     studyPlan: StudyPlan | null;
     examDate: string;

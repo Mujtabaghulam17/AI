@@ -50,8 +50,9 @@ import { debouncedSync, loadAndMergeUserData, prepareDataForSync, forceSync } fr
 import { checkPendingPayment } from './api/stripe.ts';
 import { updateSubscriptionTier } from './api/firebase.ts';
 import { type SubscriptionTier, isPaidTier, isAiLimitReached, isChatLimitReached, canAccessSubject, canUseExamPredictor, DAILY_AI_LIMIT_FREE, DAILY_CHAT_LIMIT_FREE } from './utils/subscriptionTiers';
-import { getQuestions } from './api/questionService.ts';
+import { getQuestions, saveGeneratedQuestion } from './api/questionService.ts';
 import { getHardcodedQuestions, getFreeQuestionIds } from './data/questionHelper.ts';
+import { recordAnswered, getRecentlyAnsweredIds, migrateToTimestampedEntries, cleanupOldEntries } from './utils/answeredQuestions.ts';
 import { examInfo, getExamProgramSummary, getCEDomains } from './data/examInfo.ts';
 import { allBadges } from './data/badges.ts';
 import { mockSquadData } from './data/mockSquad.ts';
@@ -60,7 +61,7 @@ import type { Question, MasteryScore, StudyPlan, Mistake, ChatMessage, PlannerTa
 
 const CHAT_MESSAGE_LIMIT_FREE = DAILY_CHAT_LIMIT_FREE;
 const DAILY_ANSWER_LIMIT_FREE = DAILY_AI_LIMIT_FREE;
-const MODEL_NAME = 'gemini-2.5-flash';
+const MODEL_NAME = 'gemini-3.1-flash-lite-preview';
 
 type Subject = 'Nederlands' | 'Engels' | 'Natuurkunde' | 'Biologie' | 'Economie' | 'Geschiedenis' | 'Scheikunde' | 'Bedrijfseconomie' | 'Wiskunde A' | 'Wiskunde B' | 'Frans' | 'Duits' | 'Wiskunde' | 'Nask 1' | 'Nask 2' | 'Aardrijkskunde' | 'Maatschappijkunde';
 type ExamLevel = 'VMBO' | 'HAVO' | 'VWO';
@@ -413,9 +414,33 @@ const App = () => {
                         if (data.studyStreak !== undefined) setStudyStreak(data.studyStreak);
                         if (data.earnedBadges) setEarnedBadges(data.earnedBadges);
                         if (data.subjectData && Object.keys(data.subjectData).length > 0) {
-                            setSubjectData(prev => ({ ...prev, ...data.subjectData }));
+                            // Merge and migrate answeredIds to timestamped entries
+                            const migratedData = { ...data.subjectData } as any;
+                            Object.keys(migratedData).forEach(subject => {
+                                if (migratedData[subject]) {
+                                    migratedData[subject] = migrateToTimestampedEntries(
+                                        cleanupOldEntries(migratedData[subject])
+                                    );
+                                }
+                            });
+                            setSubjectData(prev => ({ ...prev, ...migratedData }));
                         }
                         if (data.globalPulseCheck) setGlobalPulseCheck(data.globalPulseCheck);
+
+                        // Restore onboarding status from Firestore
+                        if (data.onboardingCompleted) {
+                            setHasCompletedOnboarding(true);
+                            if (firebaseUser) {
+                                localStorage.setItem(`onboarding_done_${firebaseUser.uid}`, 'true');
+                            }
+                            // Restore exam level from onboarding data if available
+                            if (data.onboardingData?.level) {
+                                setExamLevel(data.onboardingData.level as ExamLevel);
+                                if (firebaseUser) {
+                                    localStorage.setItem(`examLevel_${firebaseUser.uid}`, JSON.stringify(data.onboardingData.level));
+                                }
+                            }
+                        }
 
                         // Determine subscription tier from Firestore
                         // Priority: subscriptionTier (if paid) > isPremium (legacy) > default 'free'
@@ -493,9 +518,15 @@ const App = () => {
     useEffect(() => {
         if (!isAuthLoading) {
             if (isAuthenticated && firebaseUser) {
-                // Check user-specific onboarding status
+                // Wait for Firestore data to load before deciding on onboarding
+                // This prevents the race condition where localStorage is checked
+                // before Firestore has had a chance to restore onboarding status
+                if (isLoadingUserData) return;
+
+                // Check onboarding status: Firestore data (loaded in loadUserData)
+                // takes precedence, then fall back to localStorage
                 const userOnboardingKey = `onboarding_done_${firebaseUser.uid}`;
-                const userDoneOnboarding = localStorage.getItem(userOnboardingKey) === 'true';
+                const userDoneOnboarding = hasCompletedOnboarding || localStorage.getItem(userOnboardingKey) === 'true';
                 setHasCompletedOnboarding(userDoneOnboarding);
 
                 if (!userDoneOnboarding) {
@@ -514,7 +545,7 @@ const App = () => {
                 if (currentScreen !== 'WELCOME') setCurrentScreen('WELCOME');
             }
         }
-    }, [isAuthenticated, isAuthLoading, firebaseUser]);
+    }, [isAuthenticated, isAuthLoading, firebaseUser, isLoadingUserData, hasCompletedOnboarding]);
 
     useEffect(() => { localStorage.setItem('subjectData', JSON.stringify(subjectData)); }, [subjectData]);
     useEffect(() => { localStorage.setItem('level', JSON.stringify(level)); }, [level]);
@@ -689,8 +720,8 @@ const App = () => {
         setConsecutiveIncorrectAnswers(0);
 
         const questionPool = isPremium ? questions : questions.filter(q => freeQuestionIds.includes(q.id));
-        const answeredIdsSet = new Set(currentData.answeredIds);
-        let availableQuestions = questionPool.filter(q => !answeredIdsSet.has(q.id));
+        const recentlyAnswered = getRecentlyAnsweredIds(currentData);
+        let availableQuestions = questionPool.filter(q => !recentlyAnswered.has(q.id));
         if (availableQuestions.length === 0 && questionPool.length > 0) availableQuestions = questionPool;
 
         let sessionQuestions: Question[] = availableQuestions.sort(() => 0.5 - Math.random()).slice(0, proposedSession.newQuestionsCount);
@@ -923,7 +954,9 @@ JSON output.`;
                     repetitionLevel: 0, nextReviewDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
                 });
             }
-            data.answeredIds.push(currentQuestion.id);
+            // Use smart timestamped tracking (also maintains legacy answeredIds)
+            const updatedData = recordAnswered(data, currentQuestion.id);
+            newSubjectData[currentSubject] = { ...data, ...updatedData, masteryScores: data.masteryScores, mistakes: data.mistakes };
             return newSubjectData;
         });
 
@@ -1107,16 +1140,24 @@ JSON output.`;
                         <OuderDashboard
                             onBack={() => setCurrentScreen('DASHBOARD')}
                             studentName={user?.name || 'Leerling'}
-                            stats={{
-                                hoursThisWeek: Math.round((dailyAnswers.count || 0) * 0.1),
-                                averageScore: Object.values(currentData.masteryScores).length > 0
-                                    ? Math.round(Object.values(currentData.masteryScores).reduce((sum, s) => sum + (s.total > 0 ? (s.correct / s.total) * 100 : 0), 0) / Math.max(1, Object.values(currentData.masteryScores).length))
-                                    : 0,
-                                activeSubjects: [currentSubject],
-                                lastActive: new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }),
-                                totalQuestions: Object.values(currentData.masteryScores).reduce((sum, s) => sum + s.total, 0),
-                                streak: studyStreak,
+                            subjectData={subjectData}
+                            studyStreak={studyStreak}
+                            currentSubject={currentSubject}
+                            onGenerateTip={async () => {
+                                setIsGeneratingParentTip(true);
+                                try {
+                                    const avgMastery = Object.values(currentData.masteryScores).reduce((sum, s) => sum + (s.correct / Math.max(s.total, 1)), 0) / Math.max(Object.keys(currentData.masteryScores).length, 1);
+                                    const prompt = `Je bent een pedagogisch adviseur. Geef 3 korte, praktische tips voor ouders over hoe ze hun kind kunnen ondersteunen bij het studeren voor ${currentSubject}. Het kind heeft een gemiddelde beheersing van ${Math.round(avgMastery * 100)}%. Wees positief, concreet en motiverend. Focus op het leerproces, niet alleen op de resultaten.`;
+                                    const response = await generateContentWithRetry({ model: MODEL_NAME, contents: prompt });
+                                    setParentTip(response.text || 'Moedig uw kind aan en vier kleine successen!');
+                                } catch {
+                                    setParentTip('Blijf betrokken bij het leerproces en stel open vragen over wat uw kind leert.');
+                                } finally {
+                                    setIsGeneratingParentTip(false);
+                                }
                             }}
+                            parentTip={parentTip}
+                            isGeneratingTip={isGeneratingParentTip}
                         />
                     )}
 
@@ -1359,7 +1400,28 @@ JSON output.`;
                             setIsGeneratingAffirmation(false);
                         }
                     }} isGenerating={isGeneratingAffirmation} />
-                    <ExamPredictorModal isOpen={isExamPredictorOpen} onClose={() => setIsExamPredictorOpen(false)} subject={currentSubject} examLevel={examLevel} />
+                    <ExamPredictorModal
+                        isOpen={isExamPredictorOpen}
+                        onClose={() => setIsExamPredictorOpen(false)}
+                        subject={currentSubject}
+                        examLevel={examLevel}
+                        masteryScores={currentData.masteryScores}
+                        onSaveResults={(domainCode, score) => {
+                            setSubjectData(prev => ({
+                                ...prev,
+                                [currentSubject]: {
+                                    ...prev[currentSubject as keyof typeof prev],
+                                    masteryScores: {
+                                        ...(prev[currentSubject as keyof typeof prev] as any)?.masteryScores,
+                                        [`Domein ${domainCode}`]: {
+                                            correct: (((prev[currentSubject as keyof typeof prev] as any)?.masteryScores?.[`Domein ${domainCode}`]?.correct) || 0) + score.correct,
+                                            total: (((prev[currentSubject as keyof typeof prev] as any)?.masteryScores?.[`Domein ${domainCode}`]?.total) || 0) + score.total,
+                                        }
+                                    }
+                                }
+                            }));
+                        }}
+                    />
                     <UploadAnalysisModal
                         isOpen={isUploadModalOpen}
                         onClose={() => setIsUploadModalOpen(false)}
@@ -1458,6 +1520,11 @@ Wees constructief en bemoedigend maar eerlijk.`,
                             if (firebaseUser) {
                                 localStorage.setItem(`onboarding_done_${firebaseUser.uid}`, 'true');
                                 localStorage.setItem(`examLevel_${firebaseUser.uid}`, JSON.stringify(data.level));
+                                // Persist onboarding status to Firestore so it survives across devices/browsers
+                                forceSync(firebaseUser.uid, {
+                                    onboardingCompleted: true,
+                                    onboardingData: { level: data.level, subjects: data.subjects, examDate: data.examDate },
+                                });
                             }
                             // Also save globally for backwards compatibility
                             localStorage.setItem('hasCompletedOnboarding', JSON.stringify(true));

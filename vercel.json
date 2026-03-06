@@ -1,4 +1,17 @@
 {
+  "functions": {
+    "api/ai.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/stripe-webhook.ts": {
+      "maxDuration": 30
+    },
+    "api/generate-questions.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",

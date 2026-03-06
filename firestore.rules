@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users: alleen eigen data lezen/schrijven
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Hardcoded examenvragen: authenticated users mogen lezen, schrijven alleen via admin SDK
+    match /questions/{doc} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // AI-gegenereerde vragen: lezen voor alle authenticated users, schrijven door authenticated users
+    match /generated_questions/{doc} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.subject is string
+        && request.resource.data.level is string
+        && request.resource.data.vraag_tekst is string
+        && request.resource.data.kern_vaardigheid is string
+        && request.resource.data.source == 'ai_generated';
+      allow update, delete: if false;
+    }
+
+    // Ouder-profielen: alleen eigen profiel
+    match /parents/{parentId} {
+      allow read, write: if request.auth != null && request.auth.uid == parentId;
+    }
+
+    // Webhook events (idempotency): alleen server-side
+    match /webhook-events/{doc} {
+      allow read, write: if false;
+    }
+  }
+}

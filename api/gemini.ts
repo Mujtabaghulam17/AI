@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { auth } from './firebase';
 
 /**
  * In production (Vercel), AI calls go through /api/ai to keep the API key server-side.
@@ -27,6 +28,19 @@ export const cleanAndParseJSON = (text: string) => {
 };
 
 /**
+ * Get Firebase Auth ID token for authenticated API calls.
+ */
+const getAuthToken = async (): Promise<string | null> => {
+    try {
+        const user = auth?.currentUser;
+        if (!user) return null;
+        return await user.getIdToken();
+    } catch {
+        return null;
+    }
+};
+
+/**
  * Determines whether to use the server proxy or the client SDK.
  * In production (no client API key), always proxy through /api/ai.
  */
@@ -41,6 +55,7 @@ const isProxyAvailable = (): boolean => {
 /**
  * Robuuste wrapper voor generateContent met retry logica en exponential backoff.
  * Routes through /api/ai server proxy in production to keep API key safe.
+ * Includes Firebase Auth token for server-side rate limiting.
  */
 export const generateContentWithRetry = async (params: any, retries = 3, delay = 1000) => {
     const useProxy = isProxyAvailable();
@@ -58,10 +73,19 @@ export const generateContentWithRetry = async (params: any, retries = 3, delay =
     for (let i = 0; i < retries; i++) {
         try {
             if (useProxy) {
+                // Get auth token for rate limiting
+                const token = await getAuthToken();
+                const headers: Record<string, string> = {
+                    'Content-Type': 'application/json',
+                };
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
                 // Server-side proxy call
                 const response = await fetch('/api/ai', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify({
                         model: params.model,
                         contents: params.contents,
