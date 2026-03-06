@@ -1,42 +1,56 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
-import * as admin from 'firebase-admin';
 
-// Initialize Firebase Admin (shared with stripe-webhook.ts, only once)
-if (!admin.apps.length) {
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-        ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-        : undefined;
+// ─── Firebase Admin (optional – graceful if not configured) ─────────────────
 
-    if (serviceAccount) {
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-        });
+let firebaseAdmin: any = null;
+let adminDb: any = null;
+let adminAuth: any = null;
+let adminInitError: string | null = null;
+
+try {
+    firebaseAdmin = require('firebase-admin');
+
+    if (!firebaseAdmin.apps.length) {
+        const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        if (serviceAccountJson) {
+            const serviceAccount = JSON.parse(serviceAccountJson);
+            firebaseAdmin.initializeApp({
+                credential: firebaseAdmin.credential.cert(serviceAccount),
+            });
+            adminDb = firebaseAdmin.firestore();
+            adminAuth = firebaseAdmin.auth();
+        } else {
+            adminInitError = 'FIREBASE_SERVICE_ACCOUNT_KEY not set';
+        }
     } else {
-        admin.initializeApp();
+        adminDb = firebaseAdmin.firestore();
+        adminAuth = firebaseAdmin.auth();
     }
+} catch (err: any) {
+    adminInitError = err.message || 'Firebase Admin init failed';
 }
 
-const db = admin.firestore();
+if (adminInitError) {
+    console.warn(`[api/ai] Firebase Admin unavailable: ${adminInitError}. Auth & rate limiting disabled.`);
+}
 
-// Allowed models to prevent abuse
+// ─── Config ─────────────────────────────────────────────────────────────────
+
 const ALLOWED_MODELS = [
     'gemini-3.1-flash-lite-preview',
     'gemini-2.5-flash-native-audio-preview-12-2025',
     'gemini-2.5-flash-preview-tts',
 ];
 
-// Daily limits per subscription tier
 const DAILY_LIMITS: Record<string, number> = {
     free: 15,
     focus: 200,
     totaal: 500,
 };
 
-// Max request body size (50KB)
-const MAX_BODY_SIZE = 50 * 1024;
+const MAX_BODY_SIZE = 50 * 1024; // 50KB
 
-// Allowed origins
 const ALLOWED_ORIGINS = [
     'https://glowexamen.nl',
     'https://www.glowexamen.nl',
@@ -44,16 +58,10 @@ const ALLOWED_ORIGINS = [
     'http://localhost:3000',
 ];
 
-/**
- * Vercel Serverless API proxy for Gemini AI calls.
- * Includes: Firebase Auth, rate limiting, model whitelist, CORS restriction.
- *
- * POST /api/ai
- * Headers: { Authorization: 'Bearer <firebase-id-token>' }
- * Body: { model, contents, config? }
- */
+// ─── Handler ────────────────────────────────────────────────────────────────
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // CORS - restrict to allowed origins
+    // CORS
     const origin = req.headers.origin || '';
     if (ALLOWED_ORIGINS.includes(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin);
@@ -76,20 +84,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: 'API_KEY niet geconfigureerd op de server.' });
     }
 
-    // --- Auth: validate Firebase ID token ---
-    const authHeader = req.headers.authorization;
+    // --- Auth: validate Firebase ID token (only if Admin SDK is available) ---
     let userId: string | null = null;
 
-    if (authHeader?.startsWith('Bearer ')) {
-        try {
-            const token = authHeader.slice(7);
-            const decoded = await admin.auth().verifyIdToken(token);
-            userId = decoded.uid;
-        } catch {
-            return res.status(401).json({ error: 'Ongeldige authenticatie token.' });
+    if (adminAuth) {
+        const authHeader = req.headers.authorization;
+        if (authHeader?.startsWith('Bearer ')) {
+            try {
+                const token = authHeader.slice(7);
+                const decoded = await adminAuth.verifyIdToken(token);
+                userId = decoded.uid;
+            } catch {
+                // Token invalid — continue as unauthenticated
+            }
         }
     }
-    // Allow unauthenticated requests with stricter limits (for backwards compatibility during migration)
 
     // --- Body size check ---
     const bodyStr = JSON.stringify(req.body || {});
@@ -109,36 +118,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: `Model '${model}' is niet toegestaan.` });
         }
 
-        // --- Rate limiting ---
-        if (userId) {
-            const today = new Date().toISOString().split('T')[0];
-            const usageRef = db.collection('users').doc(userId).collection('usage').doc(today);
+        // --- Rate limiting (only if Firebase Admin is available + user is authenticated) ---
+        if (adminDb && userId) {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const usageRef = adminDb.collection('users').doc(userId).collection('usage').doc(today);
 
-            const allowed = await db.runTransaction(async (transaction) => {
-                const usageDoc = await transaction.get(usageRef);
-                const currentCount = usageDoc.exists ? (usageDoc.data()?.aiCalls || 0) : 0;
+                const allowed = await adminDb.runTransaction(async (transaction: any) => {
+                    const usageDoc = await transaction.get(usageRef);
+                    const currentCount = usageDoc.exists ? (usageDoc.data()?.aiCalls || 0) : 0;
 
-                // Get user's subscription tier
-                const userDoc = await transaction.get(db.collection('users').doc(userId!));
-                const tier = userDoc.exists ? (userDoc.data()?.subscriptionTier || 'free') : 'free';
-                const limit = DAILY_LIMITS[tier] || DAILY_LIMITS.free;
+                    const userDoc = await transaction.get(adminDb.collection('users').doc(userId));
+                    const tier = userDoc.exists ? (userDoc.data()?.subscriptionTier || 'free') : 'free';
+                    const limit = DAILY_LIMITS[tier] || DAILY_LIMITS.free;
 
-                if (currentCount >= limit) {
-                    return false;
-                }
+                    if (currentCount >= limit) {
+                        return false;
+                    }
 
-                transaction.set(usageRef, {
-                    aiCalls: (currentCount + 1),
-                    lastCall: new Date().toISOString(),
-                }, { merge: true });
+                    transaction.set(usageRef, {
+                        aiCalls: (currentCount + 1),
+                        lastCall: new Date().toISOString(),
+                    }, { merge: true });
 
-                return true;
-            });
-
-            if (!allowed) {
-                return res.status(429).json({
-                    error: 'Dagelijkse limiet bereikt. Upgrade je abonnement voor meer vragen.',
+                    return true;
                 });
+
+                if (!allowed) {
+                    return res.status(429).json({
+                        error: 'Dagelijkse limiet bereikt. Upgrade je abonnement voor meer vragen.',
+                    });
+                }
+            } catch (rateLimitError: any) {
+                // Rate limiting failed — let the request through
+                console.warn('[api/ai] Rate limiting check failed:', rateLimitError.message);
             }
         }
 
@@ -155,6 +168,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             candidates: response.candidates || [],
         });
     } catch (error: any) {
+        console.error('[api/ai] Error:', error.message || error);
         const status = error.status || error.httpStatusCode || 500;
         const message = error.message || 'AI request mislukt.';
         return res.status(status >= 400 && status < 600 ? status : 500).json({ error: message });
