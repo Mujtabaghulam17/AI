@@ -226,7 +226,7 @@ Eisen:
                                         ? `Vraag ${currentQuestionIndex + 1}/${predictedQuestions.length} — ${activePrediction?.title}`
                                         : viewMode === 'results'
                                             ? `Resultaten — ${activePrediction?.title}`
-                                            : `Examenvragen op examenniveau voor ${subject}`
+                                            : `Voorspelde examenvragen voor ${subject}`
                                 }
                             </p>
                         </div>
@@ -299,7 +299,7 @@ Eisen:
 
                             {/* Domain predictions */}
                             <h4 style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                                DOMEINANALYSE — EXAMENNIVEAU
+                                VOORSPELLING PER DOMEIN
                             </h4>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {prediction.predictions.map((pred) => {
@@ -342,7 +342,7 @@ Eisen:
                                                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                                                     <span style={{ fontWeight: 700, color: config.color, fontSize: '0.85rem' }}>
                                                         {pred.predictedChance}%
-                                                    </span> examenrelevantie
+                                                    </span> examenkans
                                                 </div>
                                                 <div style={{ fontSize: '0.72rem', color: 'var(--subtle-text)' }}>
                                                     {pred.studentMastery !== null
@@ -371,7 +371,7 @@ Eisen:
                                 ))}
                             </div>
                             <p style={{ fontSize: '0.7rem', color: 'var(--subtle-text)', textAlign: 'center', marginTop: '10px', fontStyle: 'italic' }}>
-                                Gebaseerd op analyse van 10+ jaar officiële examens. Wij trainen je op het echte examenniveau.
+                                Voorspellingen door ons zelflerende algoritme op basis van 10+ jaar officiële examendata.
                             </p>
                         </>
                     )}
@@ -388,7 +388,7 @@ Eisen:
                                 AI genereert gerichte examenvragen...
                             </p>
                             <p style={{ color: 'var(--subtle-text)', fontSize: '0.8rem', marginTop: '4px' }}>
-                                Domein {activePrediction?.code}: {activePrediction?.title} (examenniveau: {activePrediction?.predictedChance}% relevantie)
+                                Domein {activePrediction?.code}: {activePrediction?.title} (voorspelde examenkans: {activePrediction?.predictedChance}%)
                             </p>
                         </div>
                     )}
