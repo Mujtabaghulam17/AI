@@ -1,4 +1,5 @@
 import React from 'react';
+import { markdownToSafeHTML } from '../utils/sanitize';
 
 // This is now a generic AnalysisModal
 interface AnalysisModalProps {
@@ -27,7 +28,7 @@ const AnalysisModal: React.FC<AnalysisModalProps> = ({ isOpen, onClose, title, l
                             <p style={{ marginTop: '16px', color: 'var(--subtle-text)' }}>{loadingText}</p>
                         </div>
                     ) : (
-                        <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: analysisContent.replace(/### (.*?)\n/g, '<h3>$1</h3>').replace(/\n/g, '<br />') }} />
+                        <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: markdownToSafeHTML(analysisContent) }} />
                     )}
                 </div>
                 <button className="button" onClick={onClose} style={{marginTop: '16px'}}>Oké, bedankt!</button>

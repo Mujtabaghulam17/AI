@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { captureError } from '../utils/sentry';
 
 interface Props {
     children: ReactNode;
@@ -20,10 +21,10 @@ class ErrorBoundary extends Component<Props, State> {
     }
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        if (process.env.NODE_ENV !== 'production') {
-            console.error('ErrorBoundary caught:', error, errorInfo);
-        }
-        // TODO: Send to error reporting service (e.g. Sentry)
+        captureError(error, {
+            componentStack: errorInfo.componentStack || '',
+            source: 'ErrorBoundary',
+        });
     }
 
     handleRetry = () => {

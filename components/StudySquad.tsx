@@ -1,4 +1,5 @@
 import React from 'react';
+import { sanitizeHTML } from '../utils/sanitize';
 import type { SquadData } from '../data/data.ts';
 
 interface StudySquadProps {
@@ -208,7 +209,7 @@ const StudySquad: React.FC<StudySquadProps> = ({ isPremium, onUpgrade, squadData
                             }}>
                                 <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{activity.avatar}</span>
                                 <div style={{ minWidth: 0 }}>
-                                    <p style={{ margin: 0, fontSize: '0.82rem', lineHeight: 1.4 }} dangerouslySetInnerHTML={{ __html: activity.text }} />
+                                    <p style={{ margin: 0, fontSize: '0.82rem', lineHeight: 1.4 }} dangerouslySetInnerHTML={{ __html: sanitizeHTML(activity.text) }} />
                                     <p style={{ fontSize: '0.7rem', color: 'var(--subtle-text)', margin: '3px 0 0' }}>{activity.timestamp}</p>
                                 </div>
                             </div>

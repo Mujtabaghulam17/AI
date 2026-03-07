@@ -32,6 +32,13 @@ export default defineConfig(({ mode }) => {
     build: {
       // Use esbuild for minification (bundled with Vite, no extra install)
       minify: 'esbuild',
+      // Strip console.log/warn in production (keep console.error for debugging)
+      ...(mode === 'production' && {
+        esbuild: {
+          drop: ['debugger'],
+          pure: ['console.log', 'console.warn', 'console.info', 'console.debug'],
+        },
+      }),
       // Split chunks for better caching
       rollupOptions: {
         output: {

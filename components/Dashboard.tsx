@@ -75,6 +75,7 @@ interface DashboardProps {
     squadData: SquadData;
     user: User | null;
     onLogout: () => void;
+    onDeleteAccount: () => void;
     onLogoClick: () => void;
     onOpenSquadOfficeHours: () => void;
     onGenerateParentTips: () => void;
@@ -113,7 +114,7 @@ const ThemeToggle = ({ theme, setTheme }: { theme: 'light' | 'dark'; setTheme: (
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
     const {
-        masteryScores, onStartSession, isGeneratingSession, onReset, studyStreak, level, xp, xpForNextLevel, examDate, setExamDate, studyPlan, generatePlan, updatePlan, isGeneratingPlan, onToggleTask, onReviewWeek, onShowInfo, onStartActionableTask, repetitionQueue, onStartRepetition, onOpenChat, onOpenChatForQuestionGeneration, onOpenZenZone, isPremium, subscriptionTier = 'free', primarySubject, onUpgrade, onAnalyzeMistakes, hasMistakes, currentSubject, onSubjectChange, answerLimitReached, dailyAnswers, theme, setTheme, allBadges, earnedBadges, dailyQuests, onGenerateDailyQuests, isGeneratingQuests, onStartQuest, onStartExam, onOpenUploadModal, progressHistory, flashcardDecks, onAddFlashcardDeck, onCreateDeckFromSummary, onGenerateProgressAnalysis, onOpenAuthModal, proactiveInsight, onProactiveAction, onShareDeck, squadData, user, onLogout, onLogoClick, onOpenSquadOfficeHours, onGenerateParentTips, parentTip, isGeneratingParentTip, onOpenExamPredictor, examLevel, onOpenOuderDashboard
+        masteryScores, onStartSession, isGeneratingSession, onReset, studyStreak, level, xp, xpForNextLevel, examDate, setExamDate, studyPlan, generatePlan, updatePlan, isGeneratingPlan, onToggleTask, onReviewWeek, onShowInfo, onStartActionableTask, repetitionQueue, onStartRepetition, onOpenChat, onOpenChatForQuestionGeneration, onOpenZenZone, isPremium, subscriptionTier = 'free', primarySubject, onUpgrade, onAnalyzeMistakes, hasMistakes, currentSubject, onSubjectChange, answerLimitReached, dailyAnswers, theme, setTheme, allBadges, earnedBadges, dailyQuests, onGenerateDailyQuests, isGeneratingQuests, onStartQuest, onStartExam, onOpenUploadModal, progressHistory, flashcardDecks, onAddFlashcardDeck, onCreateDeckFromSummary, onGenerateProgressAnalysis, onOpenAuthModal, proactiveInsight, onProactiveAction, onShareDeck, squadData, user, onLogout, onDeleteAccount, onLogoClick, onOpenSquadOfficeHours, onGenerateParentTips, parentTip, isGeneratingParentTip, onOpenExamPredictor, examLevel, onOpenOuderDashboard
     } = props;
 
     const [activeTab, setActiveTab] = useState<DashboardTab>('sessie');
@@ -479,6 +480,13 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                                     </button>
                                     <button onClick={onLogout} className="profile-dropdown-button">
                                         Log uit
+                                    </button>
+                                    <button
+                                        onClick={() => { setIsProfileOpen(false); onDeleteAccount(); }}
+                                        className="profile-dropdown-button"
+                                        style={{ color: '#f87171', fontSize: '0.78rem', marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}
+                                    >
+                                        Account verwijderen
                                     </button>
                                 </div>
                             )}

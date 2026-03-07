@@ -42,6 +42,8 @@ const TermsPage = lazy(() => import('./components/TermsPage.tsx'));
 const PrivacyPage = lazy(() => import('./components/PrivacyPage.tsx'));
 const PricingPage = lazy(() => import('./components/PricingPage.tsx'));
 const OuderDashboard = lazy(() => import('./components/OuderDashboard.tsx'));
+const DeleteAccountModal = lazy(() => import('./components/DeleteAccountModal.tsx'));
+import CookieConsent from './components/CookieConsent.tsx';
 
 import { getInitialState, repetitionSchedule } from './utils/helpers.ts';
 import { generateContentWithRetry, cleanAndParseJSON, ai } from './api/gemini.ts';
@@ -194,6 +196,7 @@ const App = () => {
 
     const [isZenZoneOpen, setIsZenZoneOpen] = useState(false);
     const [isExamPredictorOpen, setIsExamPredictorOpen] = useState(false);
+    const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
     const [affirmation, setAffirmation] = useState('');
     const [isGeneratingAffirmation, setIsGeneratingAffirmation] = useState(false);
 
@@ -1290,6 +1293,7 @@ JSON output.`;
                             squadData={squadData}
                             user={user}
                             onLogout={() => logout()}
+                            onDeleteAccount={() => setIsDeleteAccountOpen(true)}
                             onLogoClick={() => setCurrentScreen('DASHBOARD')}
                             onOpenSquadOfficeHours={() => {
                                 setInfoModalData({ title: 'Squad Office Hours', content: 'Elke woensdag van 16:00-17:00 kun je live vragen stellen aan onze docenten. Link komt binnenkort!' });
@@ -1557,7 +1561,20 @@ Wees constructief en bemoedigend maar eerlijk.`,
                         userName={user?.name}
                     />
                 </div>
+
+                {/* Delete Account Modal */}
+                <DeleteAccountModal
+                    isOpen={isDeleteAccountOpen}
+                    onClose={() => setIsDeleteAccountOpen(false)}
+                    onDeleted={() => {
+                        setIsDeleteAccountOpen(false);
+                        window.location.reload();
+                    }}
+                />
             </Suspense>
+
+            {/* Cookie Consent Banner */}
+            <CookieConsent onPrivacyClick={() => setCurrentScreen('PRIVACY')} />
         </>
     );
 };
