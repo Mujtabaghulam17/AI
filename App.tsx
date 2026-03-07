@@ -56,6 +56,7 @@ import { getQuestions, saveGeneratedQuestion } from './api/questionService.ts';
 import { getHardcodedQuestions, getFreeQuestionIds } from './data/questionHelper.ts';
 import { recordAnswered, getRecentlyAnsweredIds, migrateToTimestampedEntries, cleanupOldEntries } from './utils/answeredQuestions.ts';
 import { examInfo, getExamProgramSummary, getCEDomains } from './data/examInfo.ts';
+import { learnFromStudentPerformance } from './utils/examPredictor.ts';
 import { allBadges } from './data/badges.ts';
 import { mockSquadData } from './data/mockSquad.ts';
 import { useAuth0 } from './auth/FirebaseAuthProvider.tsx';
@@ -966,6 +967,18 @@ JSON output.`;
         });
 
         setLastAnswer({ isCorrect, question: currentQuestion, aiFeedback: aiFeedbackData, mindsetTip: '', xpGained: isCorrect ? 25 : 10, userAnswer: answer });
+
+        // Feedback loop: laat het zelflerend algoritme leren van prestaties
+        try {
+            learnFromStudentPerformance(
+                currentQuestion.kern_vaardigheid,
+                isCorrect,
+                50, // Basis voorspelde kans (wordt verfijnd door het algoritme)
+                currentSubject,
+                examLevel
+            );
+        } catch { /* non-critical */ }
+
         if (!isCorrect && consecutiveIncorrectAnswers >= 2) setIsBurnoutGuardModalOpen(true);
 
         const nextIndex = activeSession.currentIndex + 1;

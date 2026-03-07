@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { getCEDomains, type ExamDomain } from '../data/examInfo.ts';
 import { generateContentWithRetry, cleanAndParseJSON } from '../api/gemini.ts';
-import { getStudentPrediction, getPredictionContextForPrompt, type DomainPrediction, type ExamPredictionResult } from '../utils/examPredictor.ts';
+import { getStudentPrediction, getPredictionContextForPrompt, learnFromStudentPerformance, type DomainPrediction, type ExamPredictionResult } from '../utils/examPredictor.ts';
 import { Type } from "@google/genai";
 
 const MODEL_NAME = 'gemini-3.1-flash-lite-preview';
@@ -165,6 +165,17 @@ Eisen:
         const newScores = [...selfScores];
         newScores[currentQuestionIndex] = correct;
         setSelfScores(newScores);
+
+        // Feedback loop: laat het algoritme leren van studentprestaties
+        if (activePrediction) {
+            learnFromStudentPerformance(
+                activePrediction.code,
+                correct,
+                activePrediction.predictedChance,
+                subject,
+                examLevel
+            );
+        }
     };
 
     const handleNextQuestion = () => {
@@ -295,6 +306,27 @@ Eisen:
                                 <p style={{ color: 'var(--subtle-text)', fontSize: '0.8rem', margin: '4px 0 0' }}>
                                     Gebaseerd op {prediction.examsAnalyzed} examens ({prediction.yearsAnalyzed.join(', ')})
                                 </p>
+                                {/* Algoritme confidence indicator */}
+                                <div style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                    marginTop: '10px', padding: '4px 12px', borderRadius: '20px',
+                                    background: prediction.algorithmConfidence >= 70
+                                        ? 'rgba(52, 211, 153, 0.1)'
+                                        : prediction.algorithmConfidence >= 45
+                                            ? 'rgba(251, 191, 36, 0.1)'
+                                            : 'rgba(248, 113, 113, 0.1)',
+                                    border: `1px solid ${prediction.algorithmConfidence >= 70 ? 'rgba(52, 211, 153, 0.25)' : prediction.algorithmConfidence >= 45 ? 'rgba(251, 191, 36, 0.25)' : 'rgba(248, 113, 113, 0.25)'}`,
+                                }}>
+                                    <span style={{ fontSize: '0.7rem' }}>
+                                        {prediction.algorithmConfidence >= 70 ? '🧠' : prediction.algorithmConfidence >= 45 ? '📊' : '📈'}
+                                    </span>
+                                    <span style={{
+                                        fontSize: '0.72rem', fontWeight: 600,
+                                        color: prediction.algorithmConfidence >= 70 ? '#34d399' : prediction.algorithmConfidence >= 45 ? '#fbbf24' : '#f87171',
+                                    }}>
+                                        Algoritme zekerheid: {prediction.algorithmConfidence}%
+                                    </span>
+                                </div>
                             </div>
 
                             {/* Domain predictions */}
@@ -323,7 +355,7 @@ Eisen:
 
                                             {/* Domain info */}
                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
                                                     <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
                                                         {pred.code}: {pred.title}
                                                     </span>
@@ -331,7 +363,37 @@ Eisen:
                                                         fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px',
                                                         background: config.bg, color: config.color, fontWeight: 700, border: `1px solid ${config.border}`,
                                                     }}>{config.label}</span>
+                                                    {/* Trend indicator */}
+                                                    {pred.trend !== 'stable' && (
+                                                        <span style={{
+                                                            fontSize: '0.62rem', padding: '1px 6px', borderRadius: '4px',
+                                                            background: pred.trend === 'rising' ? 'rgba(52, 211, 153, 0.1)' : 'rgba(248, 113, 113, 0.1)',
+                                                            color: pred.trend === 'rising' ? '#34d399' : '#f87171',
+                                                            fontWeight: 600,
+                                                            border: `1px solid ${pred.trend === 'rising' ? 'rgba(52, 211, 153, 0.25)' : 'rgba(248, 113, 113, 0.25)'}`,
+                                                        }}>
+                                                            {pred.trend === 'rising' ? '↑ Stijgend' : '↓ Dalend'}
+                                                        </span>
+                                                    )}
+                                                    {/* Confidence badge */}
+                                                    <span style={{
+                                                        fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px',
+                                                        background: 'rgba(168, 85, 247, 0.08)',
+                                                        color: '#a78bfa', fontWeight: 600,
+                                                        border: '1px solid rgba(168, 85, 247, 0.15)',
+                                                    }}>
+                                                        {pred.confidence}% zeker
+                                                    </span>
                                                 </div>
+                                                {/* Pattern indicator */}
+                                                {pred.pattern && (
+                                                    <p style={{
+                                                        margin: '0 0 3px', fontSize: '0.72rem', color: '#22d3ee',
+                                                        display: 'flex', alignItems: 'center', gap: '4px',
+                                                    }}>
+                                                        <span style={{ fontSize: '0.65rem' }}>🔄</span> {pred.pattern}
+                                                    </p>
+                                                )}
                                                 <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                                     {pred.recommendation}
                                                 </p>
@@ -371,7 +433,7 @@ Eisen:
                                 ))}
                             </div>
                             <p style={{ fontSize: '0.7rem', color: 'var(--subtle-text)', textAlign: 'center', marginTop: '10px', fontStyle: 'italic' }}>
-                                Voorspellingen door ons zelflerende algoritme op basis van 10+ jaar officiële examendata.
+                                Zelflerend algoritme — analyseert patronen, cycli en trends uit 10+ jaar officiële examendata. Wordt nauwkeuriger naarmate je meer oefent.
                             </p>
                         </>
                     )}
