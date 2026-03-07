@@ -61,7 +61,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, onUpgrade,
                             <div style={{ flex: 1, marginBottom: '16px' }}>
                                 {[
                                     'Onbeperkt 1 vak oefenen',
-                                    'Examenvoorspeller (1 vak)',
+                                    'ExamPredictor (1 vak)',
                                     'Zen Mode & AI-coach',
                                     'Proefexamens & analyses',
                                 ].map((f, i) => (
@@ -119,7 +119,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, onUpgrade,
                         <div style={{ flex: 1, marginBottom: '16px' }}>
                             {[
                                 'Alle vakken onbeperkt',
-                                'Examenvoorspeller (alle vakken)',
+                                'ExamPredictor (alle vakken)',
                                 'Persoonlijk AI-leerplan',
                                 '24/7 AI-coach & analyses',
                             ].map((f, i) => (

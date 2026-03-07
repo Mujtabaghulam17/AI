@@ -17,7 +17,7 @@ const plans = [
         features: [
             { text: '5 AI-vragen per dag', included: true },
             { text: '1 vak naar keuze', included: true },
-            { text: 'Examenvoorspeller', included: false },
+            { text: 'ExamPredictor', included: false },
             { text: 'Zen Mode', included: false },
         ],
         cta: 'Start gratis',
@@ -30,7 +30,7 @@ const plans = [
         tagline: 'Je struikelvak',
         features: [
             { text: 'Onbeperkt 1 vak', included: true },
-            { text: 'Examenvoorspeller (1 vak)', included: true },
+            { text: 'ExamPredictor (1 vak)', included: true },
             { text: 'Zen Mode & AI-coach', included: true },
             { text: 'Meerdere vakken', included: false },
         ],
@@ -44,7 +44,7 @@ const plans = [
         tagline: 'Alles onbeperkt',
         features: [
             { text: 'Alle vakken onbeperkt', included: true },
-            { text: 'Examenvoorspeller (alles)', included: true },
+            { text: 'ExamPredictor (alles)', included: true },
             { text: 'Persoonlijk leerplan', included: true },
             { text: '24/7 AI-coach', included: true },
         ],
