@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '../auth/FirebaseAuthProvider.tsx';
+import { isNativePlatform } from '../utils/platform';
 
 interface AuthModalProps {
     isOpen: boolean;
@@ -18,6 +19,7 @@ const GoogleIcon = () => (
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     const { loginWithEmail, registerWithEmail, loginWithGoogle, resetPassword, isLoading } = useAuth0();
+    const isNativeApp = isNativePlatform();
     const [mode, setMode] = useState<'login' | 'register' | 'reset'>('login');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -128,7 +130,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 </p>
 
                 {/* Google Sign-In */}
-                {mode !== 'reset' && (
+                {mode !== 'reset' && !isNativeApp && (
                     <>
                         <button
                             onClick={handleGoogleLogin}
@@ -146,6 +148,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                             <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
                         </div>
                     </>
+                )}
+
+                {mode !== 'reset' && isNativeApp && (
+                    <div style={{
+                        marginBottom: '20px',
+                        padding: '12px 14px',
+                        borderRadius: '12px',
+                        background: 'rgba(34, 211, 238, 0.08)',
+                        border: '1px solid rgba(34, 211, 238, 0.2)',
+                        color: 'var(--text-muted)',
+                        fontSize: '14px',
+                        lineHeight: 1.5,
+                    }}>
+                        Google-login volgt in een latere native update. Gebruik voorlopig e-mail en wachtwoord.
+                    </div>
                 )}
 
                 {/* Email Form */}

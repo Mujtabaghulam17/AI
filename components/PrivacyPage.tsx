@@ -85,7 +85,7 @@ const PrivacyPage: React.FC<LegalPageProps> = ({ onBack }) => {
                     <div style={sectionStyle}>
                         <h2 style={headingStyle}>1. Welke gegevens verzamelen wij?</h2>
                         <p style={textStyle}>
-                            <strong>Account gegevens:</strong> Naam, e-mailadres (via Auth0)<br />
+                            <strong>Account gegevens:</strong> Naam, e-mailadres (via Firebase Authentication)<br />
                             <strong>Studiegegevens:</strong> Beantwoorde vragen, scores, voortgang<br />
                             <strong>Gebruiksgegevens:</strong> Sessieduur, gekozen vakken<br />
                             <strong>Technische gegevens:</strong> Browser type, IP-adres (geanonimiseerd)
@@ -116,8 +116,7 @@ const PrivacyPage: React.FC<LegalPageProps> = ({ onBack }) => {
                         <h2 style={headingStyle}>4. Delen met derden</h2>
                         <p style={textStyle}>
                             Wij delen je gegevens alleen met:<br />
-                            • <strong>Auth0:</strong> Authenticatie (VS, Privacy Shield)<br />
-                            • <strong>Firebase/Google:</strong> Database opslag (EU servers)<br />
+                            • <strong>Firebase/Google:</strong> Authenticatie, database opslag en analytics<br />
                             • <strong>Stripe:</strong> Betalingsverwerking (PCI-DSS compliant)<br />
                             • <strong>Google AI:</strong> AI-feedback (data wordt niet opgeslagen door Google)<br /><br />
                             Wij verkopen nooit je gegevens aan derden.
@@ -160,7 +159,7 @@ const PrivacyPage: React.FC<LegalPageProps> = ({ onBack }) => {
                         <h2 style={headingStyle}>8. Beveiliging</h2>
                         <p style={textStyle}>
                             • Alle data-overdracht via HTTPS/TLS<br />
-                            • Wachtwoorden worden nooit opgeslagen (beheerd door Auth0)<br />
+                            • Wachtwoorden en inlogsessies worden beheerd door Firebase Authentication<br />
                             • Toegang tot productiedata beperkt tot noodzakelijk personeel<br />
                             • Regelmatige security audits
                         </p>

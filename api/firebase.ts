@@ -103,6 +103,7 @@ export {
     updateProfile
 };
 export type { FirebaseUser };
+export type BillingProvider = 'stripe' | 'app_store' | 'play_store';
 
 // User data types
 export interface UserFirestoreData {
@@ -116,6 +117,8 @@ export interface UserFirestoreData {
     stripeCustomerId?: string;
     subscriptionId?: string;
     subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing';
+    billingProvider?: BillingProvider | null;
+    billingProductId?: string | null;
     level: number;
     xp: number;
     studyStreak: number;
@@ -187,9 +190,11 @@ export const saveUserDataToFirestore = async (userId: string, data: Partial<User
 export const updateSubscriptionTier = async (
     userId: string,
     subscriptionTier: SubscriptionTier,
-    stripeCustomerId?: string,
-    subscriptionId?: string,
-    subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing'
+    stripeCustomerId?: string | null,
+    subscriptionId?: string | null,
+    subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing',
+    billingProvider?: BillingProvider | null,
+    billingProductId?: string | null
 ): Promise<boolean> => {
     if (!db) {
         console.warn("Firestore not initialized, cannot update subscription tier");
@@ -199,14 +204,19 @@ export const updateSubscriptionTier = async (
     try {
         const docRef = doc(db, "users", userId);
         const isPremium = subscriptionTier !== 'free';
-        await updateDoc(docRef, {
+        const updateData: Record<string, unknown> = {
             subscriptionTier,
             isPremium, // Keep in sync for backward compatibility
-            ...(stripeCustomerId && { stripeCustomerId }),
-            ...(subscriptionId && { subscriptionId }),
-            ...(subscriptionStatus && { subscriptionStatus }),
             updatedAt: new Date().toISOString()
-        });
+        };
+
+        if (stripeCustomerId !== undefined) updateData.stripeCustomerId = stripeCustomerId;
+        if (subscriptionId !== undefined) updateData.subscriptionId = subscriptionId;
+        if (subscriptionStatus !== undefined) updateData.subscriptionStatus = subscriptionStatus;
+        if (billingProvider !== undefined) updateData.billingProvider = billingProvider;
+        if (billingProductId !== undefined) updateData.billingProductId = billingProductId;
+
+        await updateDoc(docRef, updateData);
         console.log(`✅ Subscription tier updated: ${subscriptionTier}`);
         return true;
     } catch (error) {
@@ -219,8 +229,8 @@ export const updateSubscriptionTier = async (
 export const updatePremiumStatus = async (
     userId: string,
     isPremium: boolean,
-    stripeCustomerId?: string,
-    subscriptionId?: string,
+    stripeCustomerId?: string | null,
+    subscriptionId?: string | null,
     subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing'
 ): Promise<boolean> => {
     return updateSubscriptionTier(
@@ -255,6 +265,8 @@ export const createUserDocument = async (userId: string, email?: string, name?: 
             name,
             isPremium: false,
             subscriptionTier: 'free',
+            billingProvider: null,
+            billingProductId: null,
             level: 1,
             xp: 0,
             studyStreak: 0,

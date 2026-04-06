@@ -1,5 +1,7 @@
 import React from 'react';
+import { getNativeStoreLabel, isNativeBillingSupported } from '../api/nativeBilling';
 import type { SubscriptionTier } from '../utils/subscriptionTiers';
+import { isNativePlatform } from '../utils/platform';
 
 interface PricingPageProps {
     onBack: () => void;
@@ -54,6 +56,10 @@ const plans = [
 ];
 
 const PricingPage: React.FC<PricingPageProps> = ({ onBack, onUpgrade, isPremium, currentTier = 'free' }) => {
+    const isNativeApp = isNativePlatform();
+    const nativeBillingEnabled = isNativeBillingSupported();
+    const storeLabel = getNativeStoreLabel();
+
     return (
         <div style={{
             minHeight: '100vh',
@@ -94,6 +100,13 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, onUpgrade, isPremium,
                     <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '1.1rem' }}>
                         Maandelijks opzegbaar. Geen verrassingen.
                     </p>
+                    {isNativeApp && (
+                        <p style={{ color: '#22d3ee', fontSize: '0.95rem', marginTop: '12px' }}>
+                            {nativeBillingEnabled
+                                ? `Abonnementen in de app lopen via ${storeLabel}.`
+                                : 'Deze mobiele build toont alvast de plannen. In-app aankopen volgen zodra store billing is geconfigureerd.'}
+                        </p>
+                    )}
                 </div>
 
                 {/* 4-Tier Pricing Cards */}
@@ -202,7 +215,11 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, onUpgrade, isPremium,
                                         boxShadow: plan.popular && !isCurrentPlan ? '0 6px 24px rgba(34, 211, 238, 0.3)' : 'none',
                                     }}
                                 >
-                                    {isCurrentPlan ? '✓ Huidige plan' : plan.cta}
+                                    {isCurrentPlan
+                                        ? '✓ Huidige plan'
+                                        : isNativeApp && !nativeBillingEnabled && plan.id !== 'free'
+                                            ? 'Meer info'
+                                            : plan.cta}
                                 </button>
                             </div>
                         );
@@ -217,8 +234,20 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, onUpgrade, isPremium,
                     borderRadius: '12px',
                     marginBottom: '48px',
                 }}>
-                    <span style={{ color: '#22d3ee', fontWeight: 500 }}>✨ 7 dagen gratis proberen</span>
-                    <span style={{ color: 'rgba(255,255,255,0.5)', marginLeft: '12px' }}>• geen creditcard nodig</span>
+                    <span style={{ color: '#22d3ee', fontWeight: 500 }}>
+                        {isNativeApp
+                            ? nativeBillingEnabled
+                                ? `Betaal veilig via ${storeLabel}`
+                                : 'Mobiele billing is in voorbereiding'
+                            : '✨ 7 dagen gratis proberen'}
+                    </span>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', marginLeft: '12px' }}>
+                        {isNativeApp
+                            ? nativeBillingEnabled
+                                ? '• herstel eerdere aankopen met hetzelfde account'
+                                : '• log in met je bestaande account om je huidige abonnement te gebruiken'
+                            : '• geen creditcard nodig'}
+                    </span>
                 </div>
 
                 {/* FAQ */}

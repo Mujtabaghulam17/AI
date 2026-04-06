@@ -50,8 +50,9 @@ import { generateContentWithRetry, cleanAndParseJSON, ai } from './api/gemini.ts
 import { decode, decodeAudioData } from './utils/audio.ts';
 import { debouncedSync, loadAndMergeUserData, prepareDataForSync, forceSync } from './utils/userSync.ts';
 import { checkPendingPayment } from './api/stripe.ts';
-import { updateSubscriptionTier } from './api/firebase.ts';
-import { type SubscriptionTier, isPaidTier, isAiLimitReached, isChatLimitReached, canAccessSubject, canUseExamPredictor, DAILY_AI_LIMIT_FREE, DAILY_CHAT_LIMIT_FREE } from './utils/subscriptionTiers';
+import { updateSubscriptionTier, type BillingProvider } from './api/firebase.ts';
+import { addNativeBillingCustomerInfoListener, ensureNativeBillingReady, getBillingProductIdentifierFromCustomerInfo, getNativeBillingProvider, getNativeCustomerInfo, getSubscriptionTierFromCustomerInfo, isNativeBillingSupported } from './api/nativeBilling.ts';
+import { type SubscriptionTier, getHigherTier, isPaidTier, isAiLimitReached, isChatLimitReached, canAccessSubject, canUseExamPredictor, DAILY_AI_LIMIT_FREE, DAILY_CHAT_LIMIT_FREE } from './utils/subscriptionTiers';
 import { getQuestions, saveGeneratedQuestion } from './api/questionService.ts';
 import { getHardcodedQuestions, getFreeQuestionIds } from './data/questionHelper.ts';
 import { recordAnswered, getRecentlyAnsweredIds, migrateToTimestampedEntries, cleanupOldEntries } from './utils/answeredQuestions.ts';
@@ -61,6 +62,7 @@ import { allBadges } from './data/badges.ts';
 import { mockSquadData } from './data/mockSquad.ts';
 import { useAuth0 } from './auth/FirebaseAuthProvider.tsx';
 import type { Question, MasteryScore, StudyPlan, Mistake, ChatMessage, PlannerTask, PlannerWeek, MasterySessionContent, SubjectSpecificData, SessionProposal, ActiveSession, Badge, DailyQuests, Quest, ExamSimulationState, ExamResult, FlashcardDeck, ProgressHistoryEntry, User, MoodEntry, SquadData, AiFeedback } from './data/data.ts';
+import type { CustomerInfo } from '@revenuecat/purchases-capacitor';
 
 const CHAT_MESSAGE_LIMIT_FREE = DAILY_CHAT_LIMIT_FREE;
 const DAILY_ANSWER_LIMIT_FREE = DAILY_AI_LIMIT_FREE;
@@ -185,6 +187,7 @@ const App = () => {
     // Subscription state: always starts as 'free', Firestore is the source of truth.
     // Do NOT cache in localStorage — this caused the 'reset to free' bug.
     const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
+    const [billingProvider, setBillingProvider] = useState<BillingProvider | null>(null);
     const isPremium = isPaidTier(subscriptionTier);
     const [primarySubject, setPrimarySubject] = useState<string>('');
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -277,6 +280,43 @@ const App = () => {
 
     const xpForNextLevel = 100 * level;
     const currentData = subjectData[currentSubject] || initialSubjectData[currentSubject];
+
+    const syncNativeCustomerInfo = useCallback(async (customerInfo: CustomerInfo) => {
+        const userId = firebaseUser?.uid;
+        const nativeProvider = getNativeBillingProvider();
+
+        if (!userId || !nativeProvider) return;
+
+        const nativeTier = getSubscriptionTierFromCustomerInfo(customerInfo);
+        const nativeProductId = getBillingProductIdentifierFromCustomerInfo(customerInfo);
+
+        const nextTier = billingProvider === nativeProvider
+            ? nativeTier
+            : getHigherTier(subscriptionTier, nativeTier);
+
+        const nextProvider = billingProvider === nativeProvider
+            ? nativeProvider
+            : nextTier === nativeTier && nativeTier !== 'free'
+                ? nativeProvider
+                : billingProvider;
+
+        if (nextTier === subscriptionTier && nextProvider === billingProvider) {
+            return;
+        }
+
+        setSubscriptionTier(nextTier);
+        setBillingProvider(nextProvider ?? null);
+
+        await updateSubscriptionTier(
+            userId,
+            nextTier,
+            undefined,
+            undefined,
+            nextTier === 'free' ? 'canceled' : 'active',
+            nextProvider ?? nativeProvider,
+            nextTier === 'free' ? null : nativeProductId
+        );
+    }, [billingProvider, firebaseUser?.uid, subscriptionTier]);
 
     // Questions: loaded from Firestore with hardcoded instant fallback
     const [questions, setQuestions] = useState<Question[]>(() => getHardcodedQuestions(currentSubject));
@@ -467,6 +507,7 @@ const App = () => {
                         }
 
                         setSubscriptionTier(resolvedTier);
+                        setBillingProvider(data.billingProvider || null);
                         console.log(`✅ Subscription tier set to: ${resolvedTier}`);
                         if (data.primarySubject) setPrimarySubject(data.primarySubject);
                         console.log("📥 User data loaded from Firestore");
@@ -487,18 +528,72 @@ const App = () => {
     // Check for payment success on mount (Layer 1: client-side detection)
     // The webhook (Layer 2) is the source of truth; this provides immediate UI feedback
     useEffect(() => {
-        const result = checkPendingPayment();
-        if (result.success && result.plan) {
-            console.log(`🎉 Payment success detected! Plan: ${result.plan}`);
-            setSubscriptionTier(result.plan);
+        const syncPendingPayment = () => {
+            const result = checkPendingPayment();
+            if (result.success && result.plan) {
+                console.log(`🎉 Payment success detected! Plan: ${result.plan}`);
+                setSubscriptionTier(result.plan);
+                setBillingProvider('stripe');
 
-            // Update Firestore with subscription tier
-            const userId = firebaseUser?.uid;
-            if (userId) {
-                updateSubscriptionTier(userId, result.plan);
+                const userId = firebaseUser?.uid;
+                if (userId) {
+                    updateSubscriptionTier(userId, result.plan, undefined, undefined, 'active', 'stripe');
+                }
             }
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                syncPendingPayment();
+            }
+        };
+
+        syncPendingPayment();
+        window.addEventListener('pageshow', syncPendingPayment);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener('pageshow', syncPendingPayment);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [firebaseUser, user]);
+
+    useEffect(() => {
+        if (!isNativeBillingSupported() || isLoadingUserData) {
+            return;
         }
-    }, [user]);
+
+        let disposed = false;
+        let removeListener: (() => Promise<void>) | null = null;
+
+        const initializeNativeBilling = async () => {
+            const appUserId = isAuthenticated ? firebaseUser?.uid ?? null : null;
+            const isReady = await ensureNativeBillingReady(appUserId);
+
+            if (!isReady || disposed || !appUserId) {
+                return;
+            }
+
+            const customerInfo = await getNativeCustomerInfo();
+            if (customerInfo && !disposed) {
+                await syncNativeCustomerInfo(customerInfo);
+            }
+
+            removeListener = await addNativeBillingCustomerInfoListener((updatedCustomerInfo) => {
+                if (disposed) return;
+                void syncNativeCustomerInfo(updatedCustomerInfo);
+            });
+        };
+
+        void initializeNativeBilling();
+
+        return () => {
+            disposed = true;
+            if (removeListener) {
+                void removeListener();
+            }
+        };
+    }, [firebaseUser?.uid, isAuthenticated, isLoadingUserData, syncNativeCustomerInfo]);
 
     // Debounced sync to Firestore when data changes
     // NOTE: subscriptionTier/isPremium/primarySubject are NOT synced here.
@@ -1399,12 +1494,25 @@ JSON output.`;
                     />
 
                     <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onUpgrade={handleSelectPlan} reason={upgradeModalReason} currentTier={subscriptionTier} />
-                    <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} selectedPlan={selectedPlan} onPaymentSuccess={(plan) => {
-                        setSubscriptionTier(plan);
-                        // Force sync subscription tier to Firestore immediately
+                    <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} selectedPlan={selectedPlan} onPaymentSuccess={({ tier, provider, productIdentifier }) => {
+                        if (tier === 'free') return;
+
+                        setSubscriptionTier(tier);
+                        if (provider) {
+                            setBillingProvider(provider);
+                        }
+
                         const userId = firebaseUser?.uid;
                         if (userId) {
-                            forceSync(userId, { isPremium: true, subscriptionTier: plan });
+                            void updateSubscriptionTier(
+                                userId,
+                                tier,
+                                undefined,
+                                undefined,
+                                'active',
+                                provider,
+                                productIdentifier
+                            );
                         }
                     }} />
                     <ZenZoneModal isOpen={isZenZoneOpen} onClose={() => setIsZenZoneOpen(false)} affirmation={affirmation} onGenerateAffirmation={async () => {

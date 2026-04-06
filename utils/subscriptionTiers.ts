@@ -8,6 +8,12 @@
 
 export type SubscriptionTier = 'free' | 'focus' | 'totaal';
 
+const TIER_RANK: Record<SubscriptionTier, number> = {
+    free: 0,
+    focus: 1,
+    totaal: 2,
+};
+
 // --- Constants ---
 export const DAILY_AI_LIMIT_FREE = 5;
 export const DAILY_CHAT_LIMIT_FREE = 10;
@@ -17,6 +23,12 @@ export const DAILY_CHAT_LIMIT_FREE = 10;
 /** Returns true if user has any paid subscription */
 export const isPaidTier = (tier: SubscriptionTier): boolean => {
     return tier === 'focus' || tier === 'totaal';
+};
+
+export const getTierRank = (tier: SubscriptionTier): number => TIER_RANK[tier];
+
+export const getHigherTier = (left: SubscriptionTier, right: SubscriptionTier): SubscriptionTier => {
+    return getTierRank(left) >= getTierRank(right) ? left : right;
 };
 
 /** Returns true if user has full access to all subjects */

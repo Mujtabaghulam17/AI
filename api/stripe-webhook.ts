@@ -57,6 +57,11 @@ function getTierFromSession(session: Stripe.Checkout.Session): 'focus' | 'totaal
     return 'focus';
 }
 
+function getPriceIdFromSession(session: Stripe.Checkout.Session): string | null {
+    const lineItems = (session as any).line_items?.data;
+    return lineItems?.[0]?.price?.id || null;
+}
+
 /**
  * Vercel Serverless Function: Stripe Webhook Handler
  * 
@@ -111,6 +116,7 @@ export default async function handler(req: any, res: any) {
 
                 // Determine tier from the session
                 const tier = getTierFromSession(session);
+                const priceId = getPriceIdFromSession(session);
 
                 console.log(`✅ Checkout completed: user=${userId}, tier=${tier}, customer=${customerId}`);
 
@@ -121,6 +127,8 @@ export default async function handler(req: any, res: any) {
                     stripeCustomerId: customerId || null,
                     subscriptionId: subscriptionId || null,
                     subscriptionStatus: 'active',
+                    billingProvider: 'stripe',
+                    billingProductId: priceId,
                     updatedAt: new Date().toISOString(),
                 });
 
@@ -151,6 +159,8 @@ export default async function handler(req: any, res: any) {
                     subscriptionTier: tier,
                     isPremium: true,
                     subscriptionStatus: subscription.status,
+                    billingProvider: 'stripe',
+                    billingProductId: priceId || null,
                     updatedAt: new Date().toISOString(),
                 });
 
@@ -178,6 +188,8 @@ export default async function handler(req: any, res: any) {
                     subscriptionTier: 'free',
                     isPremium: false,
                     subscriptionStatus: 'canceled',
+                    billingProvider: 'stripe',
+                    billingProductId: null,
                     updatedAt: new Date().toISOString(),
                 });
 

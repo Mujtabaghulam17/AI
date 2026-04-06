@@ -1,6 +1,8 @@
 
 import React from 'react';
+import { getNativeStoreLabel, isNativeBillingSupported } from '../api/nativeBilling';
 import type { SubscriptionTier } from '../utils/subscriptionTiers';
+import { isNativePlatform } from '../utils/platform';
 
 interface UpgradeModalProps {
     isOpen: boolean;
@@ -15,6 +17,9 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, onUpgrade,
 
     // If user is on Focus tier, only show the Totaal upgrade
     const showFocusPlan = currentTier === 'free';
+    const isNativeApp = isNativePlatform();
+    const nativeBillingEnabled = isNativeBillingSupported();
+    const storeLabel = getNativeStoreLabel();
 
     return (
         <div className="modal-overlay" onClick={onClose}>
@@ -29,6 +34,13 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, onUpgrade,
                     ) : (
                         <p style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
                             Ontgrendel alle tools om met zelfvertrouwen je examens in te gaan.
+                        </p>
+                    )}
+                    {isNativeApp && (
+                        <p style={{ color: 'var(--text-muted)', lineHeight: 1.6, fontSize: '14px', marginTop: '12px' }}>
+                            {nativeBillingEnabled
+                                ? `Aankopen in de app worden verwerkt via ${storeLabel}.`
+                                : 'Bestaande web-abonnementen werken na het inloggen ook in de app. Nieuwe in-app abonnementen volgen zodra store billing is geconfigureerd.'}
                         </p>
                     )}
                 </div>
@@ -77,7 +89,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, onUpgrade,
                                 className="button button-secondary"
                                 style={{ width: '100%', height: '44px' }}
                             >
-                                Kies Focus
+                                {isNativeApp && !nativeBillingEnabled ? 'Meer info' : 'Kies Focus'}
                             </button>
                         </div>
                     )}
@@ -140,7 +152,15 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, onUpgrade,
                                 boxShadow: '0 4px 16px rgba(34, 211, 238, 0.3)',
                             }}
                         >
-                            {currentTier === 'focus' ? 'Upgrade naar Totaal' : 'Kies Totaal'}
+                            {isNativeApp
+                                ? nativeBillingEnabled
+                                    ? currentTier === 'focus'
+                                        ? 'Upgrade naar Totaal'
+                                        : 'Kies Totaal'
+                                    : 'Meer info'
+                                : currentTier === 'focus'
+                                    ? 'Upgrade naar Totaal'
+                                    : 'Kies Totaal'}
                         </button>
                     </div>
                 </div>

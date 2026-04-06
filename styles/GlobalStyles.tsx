@@ -7,6 +7,10 @@ const GlobalStyles = () => {
       /* GLOW 2026 PALETTE - BRIGHTER & MORE VIBRANT */
       --bg-deep: #12121f;
       --bg-elevated: #1a1a2e;
+      --safe-area-top: env(safe-area-inset-top, 0px);
+      --safe-area-right: env(safe-area-inset-right, 0px);
+      --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-area-left: env(safe-area-inset-left, 0px);
       
       --cyan: #22d3ee;
       --purple: #a855f7;
@@ -49,6 +53,10 @@ const GlobalStyles = () => {
       -webkit-font-smoothing: antialiased;
     }
 
+    html {
+      background-color: var(--bg-deep);
+    }
+
     /* ANIMATED MESH BACKGROUND - VIBRANT */
     body {
         background-color: var(--bg-deep);
@@ -63,6 +71,11 @@ const GlobalStyles = () => {
         animation: meshBreath 12s ease-in-out infinite alternate;
     }
 
+    body.native-shell {
+        overscroll-behavior-y: none;
+        min-height: 100dvh;
+    }
+
     @keyframes meshBreath {
         0% { background-position: 0% 0%; }
         25% { background-position: 100% 0%; }
@@ -75,6 +88,7 @@ const GlobalStyles = () => {
       display: flex;
       flex-direction: column;
       min-height: 100vh;
+      min-height: 100dvh;
     }
 
     .app-wrapper {
@@ -84,15 +98,20 @@ const GlobalStyles = () => {
       width: 100%;
       max-width: 1200px;
       margin: 0 auto;
-      padding: 24px;
+      padding:
+        calc(24px + var(--safe-area-top))
+        calc(24px + var(--safe-area-right))
+        calc(24px + var(--safe-area-bottom))
+        calc(24px + var(--safe-area-left));
       position: relative;
       z-index: 1;
       overflow-x: hidden;
+      box-sizing: border-box;
     }
 
     .app-wrapper.focus-mode {
       max-width: 800px;
-      padding-top: 60px;
+      padding-top: calc(60px + var(--safe-area-top));
     }
 
     /* GLASS CARDS */
@@ -578,8 +597,13 @@ const GlobalStyles = () => {
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 20px;
+        padding:
+            calc(20px + var(--safe-area-top))
+            calc(20px + var(--safe-area-right))
+            calc(20px + var(--safe-area-bottom))
+            calc(20px + var(--safe-area-left));
         animation: modalFadeIn 0.25s ease-out;
+        box-sizing: border-box;
     }
 
     @keyframes modalFadeIn {
@@ -819,7 +843,13 @@ const GlobalStyles = () => {
     }
 
     @media (max-width: 768px) {
-        .app-wrapper { padding: 16px; }
+        .app-wrapper {
+            padding:
+                calc(16px + var(--safe-area-top))
+                calc(16px + var(--safe-area-right))
+                calc(16px + var(--safe-area-bottom))
+                calc(16px + var(--safe-area-left));
+        }
         h1 { font-size: 2rem; }
         h2 { font-size: 1.15rem; }
         .app-header {
@@ -857,7 +887,11 @@ const GlobalStyles = () => {
             border-radius: 16px;
         }
         .modal-overlay {
-            padding: 10px;
+            padding:
+                calc(10px + var(--safe-area-top))
+                calc(10px + var(--safe-area-right))
+                calc(10px + var(--safe-area-bottom))
+                calc(10px + var(--safe-area-left));
             align-items: flex-end;
         }
         .modal-content {
@@ -908,7 +942,13 @@ const GlobalStyles = () => {
     }
 
     @media (max-width: 480px) {
-        .app-wrapper { padding: 12px; }
+        .app-wrapper {
+            padding:
+                calc(12px + var(--safe-area-top))
+                calc(12px + var(--safe-area-right))
+                calc(12px + var(--safe-area-bottom))
+                calc(12px + var(--safe-area-left));
+        }
         h1 { font-size: 1.6rem; }
         h2 { font-size: 1.05rem; }
         .app-header {

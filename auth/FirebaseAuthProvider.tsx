@@ -12,6 +12,7 @@ import {
     type FirebaseUser
 } from '../api/firebase';
 import type { User } from '../data/data.ts';
+import { isNativePlatform } from '../utils/platform';
 
 interface AuthContextType {
     user: User | null;
@@ -95,6 +96,9 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     const loginWithGoogle = async (): Promise<{ error?: string }> => {
         if (!auth) return { error: 'Firebase niet geïnitialiseerd' };
+        if (isNativePlatform()) {
+            return { error: 'Google-login is nog niet beschikbaar in de app. Gebruik voorlopig e-mail en wachtwoord.' };
+        }
         try {
             await signInWithPopup(auth, googleProvider);
             return {};
