@@ -20,6 +20,9 @@ export default async function handler(req: any, res: any) {
     }
 
     try {
+        if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+            return res.status(500).json({ error: 'FIREBASE_SERVICE_ACCOUNT_KEY not set' });
+        }
         const usersSnap = await db.collection('users').get();
         const users = usersSnap.docs.map(d => d.data());
 
