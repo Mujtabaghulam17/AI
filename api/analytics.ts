@@ -110,6 +110,6 @@ export default async function handler(req: any, res: any) {
         });
     } catch (error: any) {
         console.error('Analytics error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error.message, stack: error.stack, type: error.constructor?.name });
     }
 }
