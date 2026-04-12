@@ -1,18 +1,24 @@
 import * as admin from 'firebase-admin';
 
-if (!admin.apps.length) {
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-        ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-        : undefined;
+let db: admin.firestore.Firestore;
+let initError: string | null = null;
 
-    if (serviceAccount) {
-        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-    } else {
-        admin.initializeApp();
+try {
+    if (!admin.apps.length) {
+        const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+            ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+            : undefined;
+
+        if (serviceAccount) {
+            admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+        } else {
+            admin.initializeApp();
+        }
     }
+    db = admin.firestore();
+} catch (e: any) {
+    initError = e?.message + '\n' + e?.stack;
 }
-
-const db = admin.firestore();
 
 function toMs(val: any): number {
     if (!val) return 0;
@@ -27,10 +33,13 @@ export default async function handler(req: any, res: any) {
     }
 
     try {
+        if (initError) {
+            return res.status(500).json({ error: 'Firebase init failed', detail: initError });
+        }
         if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
             return res.status(500).json({ error: 'FIREBASE_SERVICE_ACCOUNT_KEY not set' });
         }
-        const usersSnap = await db.collection('users').get();
+        const usersSnap = await db!.collection('users').get();
         const users = usersSnap.docs.map(d => d.data());
 
         const now = new Date();
