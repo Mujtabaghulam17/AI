@@ -9,6 +9,9 @@
     },
     "api/stripe-webhook.ts": {
       "maxDuration": 30
+    },
+    "api/analytics.ts": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
