@@ -1,8 +1,9 @@
 import * as admin from 'firebase-admin';
 
 if (!admin.apps.length) {
-    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    const serviceAccount = raw ? JSON.parse(raw.replace(/\\n/g, '\n')) : undefined;
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+        ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+        : undefined;
 
     if (serviceAccount) {
         admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
@@ -12,6 +13,13 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
+
+function toMs(val: any): number {
+    if (!val) return 0;
+    if (typeof val === 'object' && typeof val.toMillis === 'function') return val.toMillis();
+    if (typeof val === 'string') return new Date(val).getTime();
+    return 0;
+}
 
 export default async function handler(req: any, res: any) {
     if (req.method !== 'GET') {
@@ -26,8 +34,8 @@ export default async function handler(req: any, res: any) {
         const users = usersSnap.docs.map(d => d.data());
 
         const now = new Date();
-        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const sevenDaysAgoMs = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+        const thirtyDaysAgoMs = now.getTime() - 30 * 24 * 60 * 60 * 1000;
 
         // Subscription breakdown
         const tiers: Record<string, number> = { free: 0, focus: 0, totaal: 0, gezin: 0 };
@@ -37,12 +45,12 @@ export default async function handler(req: any, res: any) {
         }
 
         // New users
-        const newLast7 = users.filter(u => u.createdAt >= sevenDaysAgo).length;
-        const newLast30 = users.filter(u => u.createdAt >= thirtyDaysAgo).length;
+        const newLast7 = users.filter(u => toMs(u.createdAt) >= sevenDaysAgoMs).length;
+        const newLast30 = users.filter(u => toMs(u.createdAt) >= thirtyDaysAgoMs).length;
 
         // Active users (updatedAt afgelopen 7/30 dagen)
-        const activeLast7 = users.filter(u => u.updatedAt >= sevenDaysAgo).length;
-        const activeLast30 = users.filter(u => u.updatedAt >= thirtyDaysAgo).length;
+        const activeLast7 = users.filter(u => toMs(u.updatedAt) >= sevenDaysAgoMs).length;
+        const activeLast30 = users.filter(u => toMs(u.updatedAt) >= thirtyDaysAgoMs).length;
 
         // Paid users
         const paidUsers = users.filter(u => u.subscriptionTier && u.subscriptionTier !== 'free');
