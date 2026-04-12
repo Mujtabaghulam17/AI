@@ -17,12 +17,32 @@ const TIER_RANK: Record<SubscriptionTier, number> = {
 // --- Constants ---
 export const DAILY_AI_LIMIT_FREE = 5;
 export const DAILY_CHAT_LIMIT_FREE = 10;
+export const TRIAL_DAYS = 3;
 
 // --- Tier Checks ---
 
 /** Returns true if user has any paid subscription */
 export const isPaidTier = (tier: SubscriptionTier): boolean => {
     return tier === 'focus' || tier === 'totaal';
+};
+
+// --- Trial Helpers ---
+
+/** Returns true if the account is within the free trial window and not yet paid */
+export const isInTrial = (tier: SubscriptionTier, createdAt?: string): boolean => {
+    if (isPaidTier(tier)) return false;
+    if (!createdAt) return false;
+    const created = new Date(createdAt).getTime();
+    const trialEnd = created + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+    return Date.now() < trialEnd;
+};
+
+/** Returns how many full days remain in the trial (0 if expired or paid) */
+export const trialDaysLeft = (tier: SubscriptionTier, createdAt?: string): number => {
+    if (!isInTrial(tier, createdAt)) return 0;
+    const created = new Date(createdAt!).getTime();
+    const trialEnd = created + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+    return Math.max(0, Math.ceil((trialEnd - Date.now()) / (24 * 60 * 60 * 1000)));
 };
 
 export const getTierRank = (tier: SubscriptionTier): number => TIER_RANK[tier];

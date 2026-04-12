@@ -127,6 +127,7 @@ export interface UserFirestoreData {
     globalPulseCheck: { year: number; week: number } | null;
     createdAt: string;
     updatedAt: string;
+    isDyslexic?: boolean;
 }
 
 /**

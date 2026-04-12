@@ -83,6 +83,10 @@ interface DashboardProps {
     isGeneratingParentTip: boolean;
     onOpenExamPredictor?: () => void;
     onOpenOuderDashboard?: () => void;
+    isTrial?: boolean;
+    trialDays?: number;
+    isDyslexic?: boolean;
+    onToggleDyslexic?: (value: boolean) => void;
 }
 
 const DAILY_ANSWER_LIMIT_FREE = 15;
@@ -114,7 +118,7 @@ const ThemeToggle = ({ theme, setTheme }: { theme: 'light' | 'dark'; setTheme: (
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
     const {
-        masteryScores, onStartSession, isGeneratingSession, onReset, studyStreak, level, xp, xpForNextLevel, examDate, setExamDate, studyPlan, generatePlan, updatePlan, isGeneratingPlan, onToggleTask, onReviewWeek, onShowInfo, onStartActionableTask, repetitionQueue, onStartRepetition, onOpenChat, onOpenChatForQuestionGeneration, onOpenZenZone, isPremium, subscriptionTier = 'free', primarySubject, onUpgrade, onAnalyzeMistakes, hasMistakes, currentSubject, onSubjectChange, answerLimitReached, dailyAnswers, theme, setTheme, allBadges, earnedBadges, dailyQuests, onGenerateDailyQuests, isGeneratingQuests, onStartQuest, onStartExam, onOpenUploadModal, progressHistory, flashcardDecks, onAddFlashcardDeck, onCreateDeckFromSummary, onGenerateProgressAnalysis, onOpenAuthModal, proactiveInsight, onProactiveAction, onShareDeck, squadData, user, onLogout, onDeleteAccount, onLogoClick, onOpenSquadOfficeHours, onGenerateParentTips, parentTip, isGeneratingParentTip, onOpenExamPredictor, examLevel, onOpenOuderDashboard
+        masteryScores, onStartSession, isGeneratingSession, onReset, studyStreak, level, xp, xpForNextLevel, examDate, setExamDate, studyPlan, generatePlan, updatePlan, isGeneratingPlan, onToggleTask, onReviewWeek, onShowInfo, onStartActionableTask, repetitionQueue, onStartRepetition, onOpenChat, onOpenChatForQuestionGeneration, onOpenZenZone, isPremium, subscriptionTier = 'free', primarySubject, onUpgrade, onAnalyzeMistakes, hasMistakes, currentSubject, onSubjectChange, answerLimitReached, dailyAnswers, theme, setTheme, allBadges, earnedBadges, dailyQuests, onGenerateDailyQuests, isGeneratingQuests, onStartQuest, onStartExam, onOpenUploadModal, progressHistory, flashcardDecks, onAddFlashcardDeck, onCreateDeckFromSummary, onGenerateProgressAnalysis, onOpenAuthModal, proactiveInsight, onProactiveAction, onShareDeck, squadData, user, onLogout, onDeleteAccount, onLogoClick, onOpenSquadOfficeHours, onGenerateParentTips, parentTip, isGeneratingParentTip, onOpenExamPredictor, examLevel, onOpenOuderDashboard, isTrial = false, trialDays = 0, isDyslexic = false, onToggleDyslexic
     } = props;
 
     const [activeTab, setActiveTab] = useState<DashboardTab>('sessie');
@@ -359,6 +363,32 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
 
     return (
         <div className="dashboard-container">
+            {isTrial && (
+                <div style={{
+                    background: 'linear-gradient(90deg, rgba(34,211,238,0.15) 0%, rgba(168,85,247,0.15) 100%)',
+                    borderBottom: '1px solid rgba(34,211,238,0.3)',
+                    padding: '8px 16px',
+                    textAlign: 'center',
+                    fontSize: '0.85rem',
+                    color: 'rgba(255,255,255,0.9)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px',
+                }}>
+                    <span>Gratis proefperiode — nog <strong>{trialDays} {trialDays === 1 ? 'dag' : 'dagen'}</strong> over. Daarna beperkte toegang.</span>
+                    <button
+                        onClick={() => onUpgrade("om onbeperkte toegang te houden na je proefperiode.")}
+                        style={{
+                            background: 'linear-gradient(135deg, #22d3ee, #a855f7)',
+                            border: 'none', borderRadius: '6px', color: '#fff',
+                            padding: '4px 12px', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem',
+                        }}
+                    >
+                        Upgrade
+                    </button>
+                </div>
+            )}
             <header className="app-header">
                 <div className="header-left">
                     <div className="dashboard-logo-container" onClick={onLogoClick} style={{ cursor: 'pointer' }}>
@@ -478,6 +508,26 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                                     >
                                         👨‍👩‍👧 Ouderoverzicht
                                     </button>
+                                    <div className="profile-dropdown-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'default' }}>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem' }}>
+                                            📖 Dyslexie-modus
+                                        </span>
+                                        <button
+                                            onClick={() => onToggleDyslexic && onToggleDyslexic(!isDyslexic)}
+                                            style={{
+                                                width: '40px', height: '22px', borderRadius: '11px', border: 'none', cursor: 'pointer',
+                                                background: isDyslexic ? '#22d3ee' : 'rgba(255,255,255,0.15)',
+                                                position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+                                            }}
+                                            aria-label="Dyslexie-modus toggle"
+                                        >
+                                            <span style={{
+                                                position: 'absolute', top: '3px', width: '16px', height: '16px',
+                                                borderRadius: '50%', background: '#fff', transition: 'left 0.2s',
+                                                left: isDyslexic ? '21px' : '3px',
+                                            }} />
+                                        </button>
+                                    </div>
                                     <button onClick={onLogout} className="profile-dropdown-button">
                                         Log uit
                                     </button>

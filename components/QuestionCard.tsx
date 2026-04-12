@@ -25,7 +25,7 @@ const LoadingIcon = () => (
 );
 
 
-const QuestionCard: React.FC<{ question: Question; allQuestions: Question[]; onSubmit: (answer: string) => void; onGetHint: () => Promise<string>; onOralPractice: () => void; user: User | null; }> = ({ question, allQuestions, onSubmit, onGetHint, onOralPractice, user }) => {
+const QuestionCard: React.FC<{ question: Question; allQuestions: Question[]; onSubmit: (answer: string) => void; onGetHint: () => Promise<string>; onOralPractice: () => void; isDyslexic?: boolean; user: User | null; }> = ({ question, allQuestions, onSubmit, onGetHint, onOralPractice, isDyslexic, user }) => {
   const [answer, setAnswer] = useState('');
   const [hint, setHint] = useState('');
   const [isHintLoading, setIsHintLoading] = useState(false);
@@ -251,7 +251,7 @@ const QuestionCard: React.FC<{ question: Question; allQuestions: Question[]; onS
                         {isHintLoading ? 'Hint wordt opgehaald...' : 'Krijg een hint'}
                     </button>
                 )}
-                {!question.options && (
+                {!question.options && isDyslexic && (
                      <button type="button" className="button-tertiary" onClick={onOralPractice} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}>
                         <MicIcon /> Beantwoord Mondeling
                     </button>

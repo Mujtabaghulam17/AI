@@ -52,7 +52,7 @@ import { debouncedSync, loadAndMergeUserData, prepareDataForSync, forceSync } fr
 import { checkPendingPayment } from './api/stripe.ts';
 import { updateSubscriptionTier, type BillingProvider } from './api/firebase.ts';
 import { addNativeBillingCustomerInfoListener, ensureNativeBillingReady, getBillingProductIdentifierFromCustomerInfo, getNativeBillingProvider, getNativeCustomerInfo, getSubscriptionTierFromCustomerInfo, isNativeBillingSupported } from './api/nativeBilling.ts';
-import { type SubscriptionTier, getHigherTier, isPaidTier, isAiLimitReached, isChatLimitReached, canAccessSubject, canUseExamPredictor, DAILY_AI_LIMIT_FREE, DAILY_CHAT_LIMIT_FREE } from './utils/subscriptionTiers';
+import { type SubscriptionTier, getHigherTier, isPaidTier, isAiLimitReached, isChatLimitReached, canAccessSubject, canUseExamPredictor, DAILY_AI_LIMIT_FREE, DAILY_CHAT_LIMIT_FREE, isInTrial, trialDaysLeft } from './utils/subscriptionTiers';
 import { getQuestions, saveGeneratedQuestion } from './api/questionService.ts';
 import { getHardcodedQuestions, getFreeQuestionIds } from './data/questionHelper.ts';
 import { recordAnswered, getRecentlyAnsweredIds, migrateToTimestampedEntries, cleanupOldEntries } from './utils/answeredQuestions.ts';
@@ -188,7 +188,13 @@ const App = () => {
     // Do NOT cache in localStorage — this caused the 'reset to free' bug.
     const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
     const [billingProvider, setBillingProvider] = useState<BillingProvider | null>(null);
+    const [userCreatedAt, setUserCreatedAt] = useState<string | undefined>(undefined);
+    const [isDyslexic, setIsDyslexic] = useState(false);
     const isPremium = isPaidTier(subscriptionTier);
+    const isTrial = isInTrial(subscriptionTier, userCreatedAt);
+    const trialDays = trialDaysLeft(subscriptionTier, userCreatedAt);
+    // During trial: unlock all totaal features (AI cap still applies via subscriptionTier)
+    const effectiveTier: SubscriptionTier = isTrial ? 'totaal' : subscriptionTier;
     const [primarySubject, setPrimarySubject] = useState<string>('');
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const [upgradeModalReason, setUpgradeModalReason] = useState<string>('');
@@ -508,6 +514,8 @@ const App = () => {
 
                         setSubscriptionTier(resolvedTier);
                         setBillingProvider(data.billingProvider || null);
+                        if (data.createdAt) setUserCreatedAt(data.createdAt);
+                        if (data.isDyslexic !== undefined) setIsDyslexic(data.isDyslexic);
                         console.log(`✅ Subscription tier set to: ${resolvedTier}`);
                         if (data.primarySubject) setPrimarySubject(data.primarySubject);
                         console.log("📥 User data loaded from Firestore");
@@ -1212,6 +1220,14 @@ JSON output.`;
         }
     };
 
+    const handleToggleDyslexic = async (value: boolean) => {
+        setIsDyslexic(value);
+        if (firebaseUser?.uid) {
+            const { saveUserDataToFirestore } = await import('./api/firebase.ts');
+            await saveUserDataToFirestore(firebaseUser.uid, { isDyslexic: value });
+        }
+    };
+
     if (isAuthLoading) return <><GlobalStyles /><LoadingCard /></>;
 
     return (
@@ -1326,8 +1342,8 @@ JSON output.`;
                                 setIsZenZoneOpen(true);
                                 updateQuestProgress('use_zen_zone');
                             }}
-                            isPremium={isPremium}
-                            subscriptionTier={subscriptionTier}
+                            isPremium={isPaidTier(effectiveTier)}
+                            subscriptionTier={effectiveTier}
                             primarySubject={primarySubject}
                             onUpgrade={openUpgradeModal}
                             onAnalyzeMistakes={() => {
@@ -1424,6 +1440,10 @@ JSON output.`;
                             isGeneratingParentTip={isGeneratingParentTip}
                             onOpenExamPredictor={() => setIsExamPredictorOpen(true)}
                             examLevel={examLevel}
+                            isTrial={isTrial}
+                            trialDays={trialDays}
+                            isDyslexic={isDyslexic}
+                            onToggleDyslexic={handleToggleDyslexic}
                         />
                     )}
 
@@ -1455,11 +1475,11 @@ JSON output.`;
                                     onGetHint={async () => "Denk aan de kern van de tekst."}
                                     onOralPractice={() => {
                                         if (currentQuestion) {
-                                            // Open thinking process modal for oral practice
                                             setThinkingProcessQuestion({ question: currentQuestion, userAnswer: '' });
                                             setIsThinkingProcessModalOpen(true);
                                         }
                                     }}
+                                    isDyslexic={isDyslexic}
                                     user={user}
                                 />
                             </div>
